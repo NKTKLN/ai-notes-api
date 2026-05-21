@@ -1,0 +1,114 @@
+version: '3'
+
+tasks:
+  # ======== Environment ========
+  sync:
+    desc: Sync dependencies (dev group) using uv
+    cmds:
+      - uv sync
+
+  precommit:
+    desc: Install git hooks
+    deps: [sync]
+    cmds:
+      - uv run pre-commit install
+
+  init:
+    desc: Full project setup
+    deps: [sync, precommit]
+
+  # ======== Commitizen ========
+  cz-commit:
+    desc: Commit using Conventional Commits
+    deps: [sync]
+    cmds:
+      - uv run cz commit
+
+  cz-check:
+    desc: Check commit messages
+    deps: [sync]
+    cmds:
+      - uv run cz check
+
+  cz-bump:
+    desc: Bump version and update changelog
+    deps: [sync]
+    cmds:
+      - uv run cz bump
+
+  release:
+    desc: Bump version and push tags
+    deps: [cz-bump]
+    cmds:
+      - git push --follow-tags
+
+  # ======== Formatting ========
+  fmt:
+    desc: Auto-fix lint issues and format code
+    deps: [sync]
+    cmds:
+      - uv run ruff format .
+      - uv run ruff check . --fix --unsafe-fixes
+
+  # ======== Static analysis ========
+  lint:
+    desc: Run Ruff and MyPy
+    deps: [sync]
+    cmds:
+      - uv run ruff check .
+      - uv run ruff format --check .
+      - uv run mypy .
+
+  # ======== Dependency hygiene ========
+  audit:
+    desc: Security audit
+    deps: [sync]
+    cmds:
+      - uv run pip-audit --ignore-vuln PYSEC-2022-42969
+
+  unused-libs:
+    desc: Detect unused dependencies
+    deps: [sync]
+    cmds:
+      - uv run deptry .
+
+  # ======== Full quality gate ========
+  check:
+    desc: Run full quality checks
+    deps: [lint, audit, unused-libs]
+
+  # ======== Tests ========
+  test:
+    desc: Run tests with coverage
+    deps: [sync]
+    cmds:
+      - uv run pytest --cov --cov-report=term-missing --cov-report=xml
+
+  # ======== Run app ========
+  run:
+    desc: Run the application
+    deps: [sync]
+    cmds:
+      - uv run python -m app.main
+
+  # ======== Build ========
+  build:
+    desc: Build package (wheel + sdist)
+    deps: [sync]
+    cmds:
+      - uv build
+
+  # ======== Docker ========
+  docker-build:
+    desc: Build Docker image
+    cmds:
+      - docker build -t python-app .
+
+  docker-run:
+    desc: Run Docker container
+    cmds:
+      - docker run -it --rm python-app
+
+  docker:
+    desc: Build and run Docker
+    deps: [docker-build, docker-run]
