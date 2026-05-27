@@ -4,7 +4,7 @@ This module defines application settings loaded from environment variables
 and the `.env` file.
 """
 
-from pydantic import Field, computed_field
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,11 +30,11 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO")
     log_path: str = Field(default="")
 
-    postgres_host: str
-    postgres_port: int
-    postgres_user: str
-    postgres_password: str
-    postgres_db: str
+    postgres_host: str = Field(...)
+    postgres_port: int = Field(...)
+    postgres_user: str = Field(...)
+    postgres_password: str = Field(...)
+    postgres_db: str = Field(...)
 
     log_format: str = (
         "<cyan>[{time:DD/MM/YY HH:mm:ss}]</cyan> "
@@ -47,7 +47,6 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    @computed_field
     @property
     def database_url(self) -> str:
         """Build the asynchronous PostgreSQL database URL.
@@ -65,4 +64,4 @@ class Settings(BaseSettings):
         )
 
 
-settings = Settings()
+settings: Settings = Settings()  # type: ignore[call-arg]

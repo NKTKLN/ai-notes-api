@@ -26,7 +26,7 @@ async_session_factory = async_sessionmaker(
 )
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_session() -> AsyncGenerator[AsyncSession]:
     """Provide an asynchronous database session.
 
     Creates an async SQLAlchemy session and yields it for request-scoped
