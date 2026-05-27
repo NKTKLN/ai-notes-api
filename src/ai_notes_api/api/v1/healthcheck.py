@@ -6,6 +6,8 @@ is running and able to respond to requests.
 
 from fastapi import APIRouter
 
+from loguru import logger
+
 from ai_notes_api.schemas import HealthcheckResponseSchema
 
 router = APIRouter(
@@ -22,4 +24,5 @@ def healthcheck() -> HealthcheckResponseSchema:
         HealthcheckResponseSchema: Healthcheck response containing the current
         service status.
     """
+    logger.info("Healthcheck requested")
     return HealthcheckResponseSchema(status="ok")
