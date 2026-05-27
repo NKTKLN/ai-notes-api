@@ -124,10 +124,10 @@ tasks:
       - uv run pytest --cov --cov-report=term-missing --cov-report=xml
 
   # ======== Run app ========
-  # run:
-  #   desc: Run the application
-  #   cmds:
-  #     - uv run python -m app.main
+  run:
+    desc: Run the application
+    cmds:
+      - uv run uvicorn ai_notes_api.main:app --reload --app-dir src
 
   # ======== Build ========
   build:
