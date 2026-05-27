@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 
 from ai_notes_api.api.v1 import router
 from ai_notes_api.core import setup_logger
@@ -33,8 +34,22 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app: FastAPI = FastAPI(
     title="AI Note's API",
-    version="0.1.0",
     lifespan=lifespan,
 )
+
+
+@app.get("/")
+def root() -> RedirectResponse:
+    """Redirect the root endpoint to the API documentation.
+
+    Returns:
+        RedirectResponse: Redirect response pointing to the Swagger UI
+        documentation page.
+    """
+    return RedirectResponse(
+        url="/docs",
+        status_code=302,
+    )
+
 
 app.include_router(router)
