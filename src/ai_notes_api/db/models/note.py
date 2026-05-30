@@ -55,6 +55,7 @@ class Note(Base, TimestampMixin, SoftDeleteMixin):
         SqlEnum(
             ModelSource,
             name="model_source",
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
         ),
         default=ModelSource.MANUAL,
         nullable=False,

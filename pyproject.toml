@@ -7,6 +7,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
     "fastapi>=0.136.3",
     "loguru>=0.7.3",
     "pydantic>=2.13.4",
@@ -108,7 +109,7 @@ fail_under = 90
 known_first_party = ["ai_notes_api"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["uvicorn"]
+DEP002 = ["uvicorn", "asyncpg"] # TODO: remove asyncpg
 
 [tool.commitizen]
 name = "cz_conventional_commits"
