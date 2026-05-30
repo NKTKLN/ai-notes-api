@@ -1,20 +1,11 @@
 [project]
-name = "ai-notes-api"
+name = "python-project-template"
 version = "0.1.0"
-description = "AI Note's API" # TODO
+description = "A Python project starter template with pre-configured tools"
 authors = [{ name = "NKTKLN", email = "nktkln@nktkln.com" }]
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = [
-    "alembic>=1.18.4",
-    "asyncpg>=0.31.0",
-    "fastapi>=0.136.3",
-    "httpx>=0.28.1",
-    "loguru>=0.7.3",
-    "pydantic-settings>=2.14.1",
-    "sqlalchemy>=2.0.50",
-    "uvicorn>=0.48.0",
-]
+dependencies = []
 
 [dependency-groups]
 dev = [
@@ -34,10 +25,10 @@ requires = ["hatchling>=1.26.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ai_notes_api"]
+packages = ["src/app"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/ai_notes_api", "README.md", "pyproject.toml"]
+include = ["src/app", "README.md", "pyproject.toml"]
 
 [tool.hatch.build]
 exclude = [
@@ -96,7 +87,7 @@ exclude = [".git", "__pycache__", "build", "dist", ".venv", "tmp"]
 
 [tool.coverage.run]
 branch = true
-source = ["ai_notes_api"]
+source = ["app"]
 parallel = true
 
 [tool.coverage.report]
