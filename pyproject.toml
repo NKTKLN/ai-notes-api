@@ -1,5 +1,5 @@
 [project]
-name = "ai-notes-api"
+name = "ai_notes_api"
 version = "0.1.0"
 description = "AI Note's API" # TODO
 authors = [{ name = "NKTKLN", email = "nktkln@nktkln.com" }]
@@ -7,10 +7,9 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.18.4",
-    "asyncpg>=0.31.0",
     "fastapi>=0.136.3",
-    "httpx>=0.28.1",
     "loguru>=0.7.3",
+    "pydantic>=2.13.4",
     "pydantic-settings>=2.14.1",
     "sqlalchemy>=2.0.50",
     "uvicorn>=0.48.0",
@@ -27,6 +26,7 @@ dev = [
   "pip-audit>=2.10.0",
   "deptry>=0.24.0",
   "commitizen>=4.13.7",
+  "httpx>=0.28.1",
 ]
 
 [build-system]
@@ -103,6 +103,12 @@ parallel = true
 show_missing = true
 skip_covered = true
 fail_under = 90
+
+[tool.deptry]
+known_first_party = ["ai_notes_api"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["uvicorn"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
