@@ -8,8 +8,9 @@ Create Date: 2026-05-30 18:21:12.109072
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "3dd76b22c38f"
 down_revision: str | Sequence[str] | None = None
@@ -39,7 +40,11 @@ def upgrade() -> None:
         sa.Column("tags", postgresql.ARRAY(sa.String()), nullable=False),
         sa.Column("source", model_source_enum, nullable=False),
         sa.Column("model_name", sa.String(length=255), nullable=True),
-        sa.Column("model_metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column(
+            "model_metadata",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+        ),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
