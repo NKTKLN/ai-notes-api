@@ -44,14 +44,14 @@ tasks:
   fmt:
     desc: Auto-fix lint issues and format code
     cmds:
-      - uv run ruff check . --fix
       - uv run ruff format .
+      - uv run ruff check . --fix
 
   fmt-unsafe:
     desc: Auto-fix lint issues using unsafe fixes and format code
     cmds:
-      - uv run ruff check . --fix --unsafe-fixes
       - uv run ruff format .
+      - uv run ruff check . --fix --unsafe-fixes
 
   fmt-check:
     desc: Check code formatting
