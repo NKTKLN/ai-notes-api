@@ -15,7 +15,16 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=HealthcheckResponseSchema)
+@router.get(
+    "",
+    summary="Check API health",
+    description=(
+        "Returns the current health status of the API. "
+        "Use this endpoint to verify that the service is running "
+        "and able to respond to requests."
+    ),
+    response_model=HealthcheckResponseSchema,
+)
 def healthcheck() -> HealthcheckResponseSchema:
     """Return the current API health status.
 
