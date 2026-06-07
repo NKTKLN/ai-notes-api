@@ -6,7 +6,7 @@ This module provides business logic for working with notes.
 from ai_notes_api.db.models import Note
 from ai_notes_api.exceptions import NoteNotFoundError
 from ai_notes_api.repositories import NoteListFilters, NoteRepository
-from ai_notes_api.schemas import NoteCreateSchema, NoteListQuerySchema
+from ai_notes_api.schemas import NoteCreateSchema, NoteListQuerySchema, NoteUpdateSchema
 
 
 class NoteService:
@@ -81,6 +81,32 @@ class NoteService:
 
         if note is None:
             raise NoteNotFoundError()
+
+        return note
+
+    async def update_note(self, note_id: int, note_update: NoteUpdateSchema) -> Note:
+        """Update a note by its identifier.
+
+        Args:
+            note_id (int): Unique note identifier.
+            note_update (NoteUpdateSchema): Validated note update data.
+
+        Returns:
+            Note: Updated note.
+
+        Raises:
+            NoteNotFoundError: If no note with the given identifier exists.
+        """
+        note = await self.repository.get_by_id(note_id)
+
+        if note is None:
+            raise NoteNotFoundError()
+
+        update_data = note_update.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(note, field, value)
+
+        await self.repository.update(note)
 
         return note
 

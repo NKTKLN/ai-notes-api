@@ -15,6 +15,7 @@ from ai_notes_api.schemas import (
     NoteListQuerySchema,
     NoteListResponseSchema,
     NoteResponseSchema,
+    NoteUpdateSchema,
     StatusResponseSchema,
 )
 from ai_notes_api.services.note import NoteService
@@ -130,6 +131,44 @@ async def get_note(
     logger.info(f"Note retrieval requested: note_id={note_id}")
 
     note = await service.get_note(note_id)
+
+    return NoteResponseSchema.model_validate(note)
+
+
+@router.patch(
+    "/{note_id}",
+    summary="Update note by ID",
+    description="Update a note by its unique identifier.",
+    response_model=NoteResponseSchema,
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {
+            "model": ErrorResponseSchema,
+            "description": "Note not found",
+        },
+    },
+)
+async def update_note(
+    note_id: int,
+    data: NoteUpdateSchema,
+    service: Annotated[NoteService, Depends(get_note_service)],
+) -> NoteResponseSchema:
+    """Update a note by its identifier.
+
+    Args:
+        note_id (int): Unique note identifier to update.
+        data (NoteUpdateSchema): Validated note update data.
+        service (NoteService): Note service dependency used to update the note.
+
+    Returns:
+        NoteResponseSchema: Updated note data.
+
+    Raises:
+        NoteNotFoundError: If no note with the given identifier exists.
+    """
+    logger.info("Note update requested: note_id={}", note_id)
+
+    note = await service.update_note(note_id, data)
 
     return NoteResponseSchema.model_validate(note)
 

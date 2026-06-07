@@ -131,3 +131,44 @@ class NoteListQuerySchema(BaseModel):
     source: ModelSource | None = None
     tag: str | None = None
     model_name: str | None = None
+
+
+class NoteUpdateSchema(BaseModel):
+    """Schema for updating a note.
+
+    Attributes:
+        title (str | None): Optional note title.
+        content (str | None): Optional main note content.
+        tags (list[str] | None): Optional list of note tags.
+        source (ModelSource | None): Optional source that indicates how the note
+            was created.
+        model_name (str | None): Optional name of the model associated with the note.
+        model_metadata (dict[str, Any] | None): Optional metadata associated
+            with the note.
+    """
+
+    title: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+    )
+
+    content: str | None = Field(
+        default=None,
+        min_length=1,
+    )
+
+    tags: list[str] | None = Field(
+        default=None,
+        max_length=20,
+    )
+
+    source: ModelSource | None = None
+
+    model_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+    )
+
+    model_metadata: dict[str, Any] | None = None

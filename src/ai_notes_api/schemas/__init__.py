@@ -9,6 +9,7 @@ from .note import (
     NoteListQuerySchema,
     NoteListResponseSchema,
     NoteResponseSchema,
+    NoteUpdateSchema,
 )
 from .status import StatusResponseSchema
 
@@ -18,5 +19,6 @@ __all__ = [
     "NoteListQuerySchema",
     "NoteListResponseSchema",
     "NoteResponseSchema",
+    "NoteUpdateSchema",
     "StatusResponseSchema",
 ]
