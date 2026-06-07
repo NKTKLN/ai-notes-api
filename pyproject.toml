@@ -29,6 +29,8 @@ dev = [
   "deptry>=0.24.0",
   "commitizen>=4.13.7",
   "httpx>=0.28.1",
+  "pytest-asyncio>=1.4.0",
+  "aiosqlite>=0.22.1",
 ]
 
 [build-system]
@@ -106,11 +108,16 @@ show_missing = true
 skip_covered = true
 fail_under = 90
 
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
+
 [tool.deptry]
 known_first_party = ["ai_notes_api"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["uvicorn", "asyncpg"] # TODO: remove asyncpg
+DEP002 = ["uvicorn", "asyncpg", "greenlet"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"

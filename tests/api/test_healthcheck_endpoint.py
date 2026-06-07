@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from ai_notes_api.main import app
 
 
-def test_healthcheck() -> None:
+def test_healthcheck_success() -> None:
     """Return OK status from the healthcheck endpoint."""
     client = TestClient(app)
 
