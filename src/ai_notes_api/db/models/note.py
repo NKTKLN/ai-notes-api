@@ -47,10 +47,23 @@ class Note(Base, TimestampMixin, SoftDeleteMixin):
 
     __tablename__ = "notes"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+    )
+
+    title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
     content: Mapped[str]
-    tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
+
+    tags: Mapped[list[str]] = mapped_column(
+        ARRAY(String),
+        default=list,
+        nullable=False,
+    )
+
     source: Mapped[ModelSource] = mapped_column(
         SqlEnum(
             ModelSource,
@@ -60,7 +73,12 @@ class Note(Base, TimestampMixin, SoftDeleteMixin):
         default=ModelSource.MANUAL,
         nullable=False,
     )
-    model_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    model_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
     model_metadata: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         default=dict,
