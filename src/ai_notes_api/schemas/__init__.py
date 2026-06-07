@@ -4,12 +4,12 @@ This package re-exports schema classes used by the API.
 """
 
 from .error import ErrorResponseSchema
-from .healthcheck import HealthcheckResponseSchema
 from .note import NoteCreateSchema, NoteResponseSchema
+from .status import StatusResponseSchema
 
 __all__ = [
     "ErrorResponseSchema",
-    "HealthcheckResponseSchema",
     "NoteCreateSchema",
     "NoteResponseSchema",
+    "StatusResponseSchema",
 ]
