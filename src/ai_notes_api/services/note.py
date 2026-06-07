@@ -4,6 +4,7 @@ This module provides business logic for working with notes.
 """
 
 from ai_notes_api.db.models import Note
+from ai_notes_api.exceptions import NoteNotFoundError
 from ai_notes_api.repositories import NoteRepository
 from ai_notes_api.schemas import NoteCreateSchema
 
@@ -50,6 +51,14 @@ class NoteService:
             note_id: Unique note identifier.
 
         Returns:
-            Note | None: Matching note if found; otherwise, None.
+            Note: Matching note.
+
+        Raises:
+            NoteNotFoundError: If no note with the given identifier exists.
         """
-        return await self.repository.get_by_id(note_id)
+        note = await self.repository.get_by_id(note_id)
+
+        if note is None:
+            raise NoteNotFoundError()
+
+        return note
