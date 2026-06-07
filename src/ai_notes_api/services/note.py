@@ -63,3 +63,19 @@ class NoteService:
             raise NoteNotFoundError()
 
         return note
+
+    async def delete_note(self, note_id: int) -> None:
+        """Delete a note by its identifier.
+
+        Args:
+            note_id (int): Unique note identifier to delete.
+
+        Raises:
+            NoteNotFoundError: If no note with the given identifier exists.
+        """
+        note = await self.repository.get_by_id(note_id)
+
+        if note is None:
+            raise NoteNotFoundError()
+
+        await self.repository.soft_delete(note)

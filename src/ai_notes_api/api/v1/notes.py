@@ -13,6 +13,7 @@ from ai_notes_api.schemas import (
     ErrorResponseSchema,
     NoteCreateSchema,
     NoteResponseSchema,
+    StatusResponseSchema,
 )
 from ai_notes_api.services.note import NoteService
 
@@ -83,3 +84,39 @@ async def get_note(
     note = await service.get_note(note_id)
 
     return NoteResponseSchema.model_validate(note)
+
+
+@router.delete(
+    "/{note_id}",
+    summary="Delete note by ID",
+    description="Delete a note by its unique identifier.",
+    response_model=StatusResponseSchema,
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {
+            "model": ErrorResponseSchema,
+            "description": "Note not found",
+        },
+    },
+)
+async def delete_note(
+    note_id: int,
+    service: Annotated[NoteService, Depends(get_note_service)],
+) -> StatusResponseSchema:
+    """Delete a note by its identifier.
+
+    Args:
+        note_id (int): Unique note identifier to delete.
+        service (NoteService): Note service dependency used to delete the note.
+
+    Returns:
+        StatusResponseSchema: Response status.
+
+    Raises:
+        NoteNotFoundError: If no note with the given identifier exists.
+    """
+    logger.info("Note deletion requested: note_id={}", note_id)
+
+    await service.delete_note(note_id)
+
+    return StatusResponseSchema(status="deleted")
