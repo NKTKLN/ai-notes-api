@@ -123,6 +123,37 @@ tasks:
     cmds:
       - uv run pytest --cov --cov-report=term-missing --cov-report=xml
 
+  # ======== Alembic ========
+  alembic-revision:
+    desc: Create new Alembic migration
+    cmds:
+      - uv run alembic revision --autogenerate -m "{{.CLI_ARGS}}"
+
+  alembic-upgrade:
+    desc: Apply Alembic migrations
+    cmds:
+      - uv run alembic upgrade head
+
+  alembic-downgrade:
+    desc: Downgrade Alembic migration by one revision
+    cmds:
+      - uv run alembic downgrade -1
+
+  alembic-current:
+    desc: Show current Alembic revision
+    cmds:
+      - uv run alembic current
+
+  alembic-history:
+    desc: Show Alembic migration history
+    cmds:
+      - uv run alembic history
+
+  alembic-heads:
+    desc: Show Alembic heads
+    cmds:
+      - uv run alembic heads
+
   # ======== Run app ========
   run:
     desc: Run the application

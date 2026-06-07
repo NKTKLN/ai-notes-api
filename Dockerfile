@@ -49,18 +49,17 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /app /app
 
+COPY docker/entrypoint.sh /entrypoint.sh
+
 # Fix ownership so non-root user can read/run everything
 RUN chown -R shrimp:shrimp /app /opt/venv
 
 USER shrimp
 
-# Optional app port (e.g., streamlit default)
-# EXPOSE 8501
+EXPOSE 8000
 
-# Optional healthcheck (uncomment if you want container-level health)
-# HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-#   CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD curl --fail http://localhost:8000/api/v1/health || exit 1
 
-# Run module as entrypoint; CMD left empty for optional args override
-ENTRYPOINT ["python", "-m", "app.main"]
-CMD [""]
+# Run module as entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
