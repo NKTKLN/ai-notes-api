@@ -38,7 +38,10 @@ app: FastAPI = FastAPI(
 )
 
 
-@app.get("/")
+@app.get(
+    "/",
+    include_in_schema=False,
+)
 def root() -> RedirectResponse:
     """Redirect the root endpoint to the API documentation.
 
