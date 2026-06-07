@@ -32,7 +32,6 @@ class NoteResponseSchema(BaseModel):
         model_metadata: Additional metadata associated with the note.
         created_at: Date and time when the note was created.
         updated_at: Date and time when the note was last updated.
-        deleted_at: Date and time when the note was soft-deleted, if any.
     """
 
     model_config = ConfigDict(
@@ -48,7 +47,6 @@ class NoteResponseSchema(BaseModel):
     model_metadata: dict[str, Any] | None
     created_at: datetime
     updated_at: datetime
-    deleted_at: datetime | None
 
 
 class NoteCreateSchema(BaseModel):
