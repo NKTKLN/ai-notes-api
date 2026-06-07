@@ -88,7 +88,7 @@ class NoteCreateSchema(BaseModel):
     )
 
     content: str = Field(
-        min_length=1,
+        default_factory=str,
     )
 
     tags: list[Tag] = Field(
@@ -155,7 +155,6 @@ class NoteUpdateSchema(BaseModel):
 
     content: str | None = Field(
         default=None,
-        min_length=1,
     )
 
     tags: list[str] | None = Field(

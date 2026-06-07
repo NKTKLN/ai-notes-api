@@ -12,8 +12,8 @@ class AppException(Exception):
     """Base exception for application-specific errors.
 
     Attributes:
-        status_code: HTTP status code returned for the exception.
-        detail: Human-readable error message.
+        status_code (int): HTTP status code returned for the exception.
+        detail (str): Human-readable error message.
     """
 
     status_code: int = 500
@@ -29,17 +29,23 @@ class AppException(Exception):
 
 async def app_exception_handler(
     _request: Request,
-    exc: AppException,
+    exc: Exception,
 ) -> JSONResponse:
     """Handle application-specific exceptions.
 
     Args:
         _request (Request): Incoming FastAPI request.
-        exc (AppException): Application exception instance.
+        exc (Exception): Exception instance raised during request handling.
 
     Returns:
         JSONResponse: JSON response containing the exception details.
+
+    Raises:
+        TypeError: If the exception is not an application exception.
     """
+    if not isinstance(exc, AppException):
+        raise TypeError
+
     return JSONResponse(
         status_code=exc.status_code,
         content={

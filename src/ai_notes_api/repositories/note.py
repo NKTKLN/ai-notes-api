@@ -94,7 +94,7 @@ class NoteRepository:
         if filters.search is not None:
             search = filters.search.strip()
 
-            if search is not None:
+            if search:
                 search_value = f"%{search}%"
 
                 stmt = stmt.where(

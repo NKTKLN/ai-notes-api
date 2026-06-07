@@ -22,8 +22,8 @@ class NoteListFilters:
         model_name (str | None): Optional model name used to filter results.
     """
 
-    limit: int = (20,)
-    offset: int = (0,)
+    limit: int = 20
+    offset: int = 0
     search: str | None = None
     source: ModelSource | None = None
     tag: str | None = None
