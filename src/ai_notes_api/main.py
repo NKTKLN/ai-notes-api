@@ -12,6 +12,7 @@ from fastapi.responses import RedirectResponse
 
 from ai_notes_api.api.v1 import router
 from ai_notes_api.core import setup_logger
+from ai_notes_api.exceptions import register_exception_handlers
 
 
 @asynccontextmanager
@@ -54,5 +55,7 @@ def root() -> RedirectResponse:
         status_code=302,
     )
 
+
+register_exception_handlers(app)
 
 app.include_router(router)

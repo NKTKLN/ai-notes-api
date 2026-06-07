@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from ai_notes_api.core import settings
+from ai_notes_api.exceptions import AppException
 
 engine = create_async_engine(
     settings.database_url,
@@ -41,6 +42,9 @@ async def get_db() -> AsyncIterator[AsyncSession]:
         try:
             yield session
             await session.commit()
+        except AppException:
+            await session.rollback()
+            raise
         except Exception:
             await session.rollback()
             logger.exception("Database transaction failed")
