@@ -10,7 +10,7 @@ class ErrorResponseSchema(BaseModel):
     """Schema for returning an API error response.
 
     Attributes:
-        detail: Human-readable error message.
+        detail (str): Human-readable error message.
     """
 
     detail: str

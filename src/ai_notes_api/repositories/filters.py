@@ -14,10 +14,10 @@ class NoteListFilters:
     """Filters used to fetch a list of notes.
 
     Attributes:
-        search: Optional text used to search notes by title or content.
-        source: Optional note source used to filter results.
-        tag: Optional tag used to filter results.
-        model_name: Optional model name used to filter results.
+        search (str | None): Optional text used to search notes by title or content.
+        source (ModelSource | None): Optional note source used to filter results.
+        tag (str | None): Optional tag used to filter results.
+        model_name (str | None): Optional model name used to filter results.
     """
 
     search: str | None = None

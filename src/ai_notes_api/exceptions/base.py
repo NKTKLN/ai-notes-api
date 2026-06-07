@@ -22,7 +22,7 @@ class AppException(Exception):
         """Initialize the application exception.
 
         Args:
-            detail: Human-readable error message.
+            detail (str): Human-readable error message.
         """
         self.detail = detail
 
@@ -34,8 +34,8 @@ async def app_exception_handler(
     """Handle application-specific exceptions.
 
     Args:
-        _request: Incoming FastAPI request.
-        exc: Application exception instance.
+        _request (Request): Incoming FastAPI request.
+        exc (AppException): Application exception instance.
 
     Returns:
         JSONResponse: JSON response containing the exception details.
@@ -52,10 +52,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     """Register custom exception handlers for the FastAPI application.
 
     Args:
-        app: FastAPI application instance.
-
-    Returns:
-        None.
+        app (FastAPI): FastAPI application instance.
     """
     app.add_exception_handler(
         AppException,

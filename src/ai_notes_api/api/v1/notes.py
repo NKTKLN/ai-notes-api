@@ -36,8 +36,8 @@ async def create_note(
     """Create a new note.
 
     Args:
-        data: Validated note creation data.
-        service: Note service dependency used to create the note.
+        data (NoteCreateSchema): Validated note creation data.
+        service (NoteService): Note service dependency used to create the note.
 
     Returns:
         NoteResponseSchema: Created note data.
@@ -69,8 +69,8 @@ async def get_note(
     """Return a note by its identifier.
 
     Args:
-        note_id: Unique note identifier.
-        service: Note service dependency used to retrieve the note.
+        note_id (int): Unique note identifier.
+        service (NoteService): Note service dependency used to retrieve the note.
 
     Returns:
         NoteResponseSchema: Note data.

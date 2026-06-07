@@ -13,14 +13,15 @@ class NoteService:
     """Service for note-related business operations.
 
     Args:
-        repository: Repository used to perform note database operations.
+        repository (NoteRepository): Repository used to perform note
+            database operations.
     """
 
     def __init__(self, repository: NoteRepository) -> None:
         """Initialize the note service.
 
         Args:
-            repository: Note repository used by the service.
+            repository (NoteRepository): Note repository used by the service.
         """
         self.repository = repository
 
@@ -28,7 +29,7 @@ class NoteService:
         """Create a note.
 
         Args:
-            data: Validated data used to create the note.
+            data (NoteCreateSchema): Validated data used to create the note.
 
         Returns:
             Note: Created note instance.
@@ -48,7 +49,7 @@ class NoteService:
         """Return a note by its identifier.
 
         Args:
-            note_id: Unique note identifier.
+            note_id (int): Unique note identifier.
 
         Returns:
             Note: Matching note.

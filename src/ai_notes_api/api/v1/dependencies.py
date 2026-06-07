@@ -19,7 +19,8 @@ def get_note_service(
     """Provide a note service instance.
 
     Args:
-        session: Asynchronous database session provided by FastAPI dependency injection.
+        session (AsyncSession): Asynchronous database session provided by FastAPI
+            dependency injection.
 
     Returns:
         NoteService: Configured note service instance.

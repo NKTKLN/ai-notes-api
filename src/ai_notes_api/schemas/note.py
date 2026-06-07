@@ -23,15 +23,17 @@ class NoteResponseSchema(BaseModel):
     """Schema for returning a note.
 
     Attributes:
-        id: Unique note identifier.
-        title: Note title.
-        content: Main note content.
-        tags: List of note tags.
-        source: Source that indicates how the note was created.
-        model_name: Optional name of the model associated with the note.
-        model_metadata: Additional metadata associated with the note.
-        created_at: Date and time when the note was created.
-        updated_at: Date and time when the note was last updated.
+        id (int): Unique note identifier.
+        title (str): Note title.
+        content (str): Main note content.
+        tags (list[str]): List of note tags.
+        source (ModelSource): Source that indicates how the note was created.
+        model_name (str | None): Optional name of the model associated with the
+            note.
+        model_metadata (dict[str, Any] | None): Additional metadata associated
+            with the note.
+        created_at (datetime): Date and time when the note was created.
+        updated_at (datetime): Date and time when the note was last updated.
     """
 
     model_config = ConfigDict(
@@ -53,12 +55,14 @@ class NoteCreateSchema(BaseModel):
     """Schema for creating a note.
 
     Attributes:
-        title: Note title.
-        content: Main note content.
-        tags: List of note tags.
-        source: Source that indicates how the note was created.
-        model_name: Optional name of the model associated with the note.
-        model_metadata: Additional metadata associated with the note.
+        title (str): Note title.
+        content (str): Main note content.
+        tags (list[Tag]): List of note tags.
+        source (ModelSource): Source that indicates how the note was created.
+        model_name (str | None): Optional name of the model associated with the
+            note.
+        model_metadata (dict[str, Any]): Additional metadata associated with the
+            note.
     """
 
     title: str = Field(

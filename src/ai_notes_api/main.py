@@ -23,7 +23,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     handling requests.
 
     Args:
-        _app: FastAPI application instance.
+        _app (FastAPI): FastAPI application instance.
 
     Yields:
         None: Control back to FastAPI while the application is running.

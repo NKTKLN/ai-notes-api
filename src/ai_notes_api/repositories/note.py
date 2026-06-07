@@ -18,14 +18,16 @@ class NoteRepository:
     """Repository for note database operations.
 
     Args:
-        session: Asynchronous SQLAlchemy session used to execute database operations.
+        session (AsyncSession): Asynchronous SQLAlchemy session used to execute
+            database operations.
     """
 
     def __init__(self, session: AsyncSession) -> None:
         """Initialize the note repository.
 
         Args:
-            session: Asynchronous SQLAlchemy session used by the repository.
+            session (AsyncSession): Asynchronous SQLAlchemy session used by the
+                repository.
         """
         self.session = session
 
@@ -33,7 +35,7 @@ class NoteRepository:
         """Create a note in the database.
 
         Args:
-            note: Note instance to persist.
+            note (Note): Note instance to persist.
 
         Returns:
             Note: Persisted note with refreshed database-generated fields.
@@ -51,7 +53,7 @@ class NoteRepository:
         """Return a note by its identifier.
 
         Args:
-            note_id: Unique note identifier.
+            note_id (int): Unique note identifier.
 
         Returns:
             Note | None: Matching note if found and not soft-deleted; otherwise, None.
@@ -77,10 +79,10 @@ class NoteRepository:
         """Return a paginated list of notes.
 
         Args:
-            limit: Maximum number of notes to return.
-            offset: Number of notes to skip before returning results.
-            source: Optional note source used to filter results.
-            filters: Optional filters used to narrow the result set.
+            limit (int): Maximum number of notes to return.
+            offset (int): Number of notes to skip before returning results.
+            filters (NoteListFilters | None): Optional filters used to narrow the
+                result set.
 
         Returns:
             list[Note]: List of matching non-deleted notes ordered by creation
@@ -133,7 +135,7 @@ class NoteRepository:
         """Update an existing note in the database.
 
         Args:
-            note: Note instance with updated field values.
+            note (Note): Note instance with updated field values.
 
         Returns:
             Note: Updated and refreshed note instance.
@@ -151,7 +153,7 @@ class NoteRepository:
         Sets the note deletion timestamp instead of removing the row from the database.
 
         Args:
-            note: Note instance to soft-delete.
+            note (Note): Note instance to soft-delete.
         """
         note.deleted_at = datetime.now(UTC)
 
