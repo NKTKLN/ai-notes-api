@@ -7,10 +7,11 @@ soft-deleting notes in the database.
 from datetime import UTC, datetime
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_notes_api.db.models import ModelSource, Note
+from ai_notes_api.db.models import Note
+from ai_notes_api.repositories.filters import NoteListFilters
 
 
 class NoteRepository:
@@ -71,8 +72,7 @@ class NoteRepository:
         self,
         limit: int = 20,
         offset: int = 0,
-        source: ModelSource | None = None,
-        tag: str | None = None,
+        filters: NoteListFilters | None = None,
     ) -> list[Note]:
         """Return a paginated list of notes.
 
@@ -80,7 +80,7 @@ class NoteRepository:
             limit: Maximum number of notes to return.
             offset: Number of notes to skip before returning results.
             source: Optional note source used to filter results.
-            tag: Optional tag used to filter results.
+            filters: Optional filters used to narrow the result set.
 
         Returns:
             list[Note]: List of matching non-deleted notes ordered by creation
@@ -88,11 +88,25 @@ class NoteRepository:
         """
         stmt = select(Note).where(Note.deleted_at.is_(None))
 
-        if source is not None:
-            stmt = stmt.where(Note.source == source)
+        if filters.source is not None:
+            stmt = stmt.where(Note.source == filters.source)
 
-        if tag is not None:
-            stmt = stmt.where(Note.tags.contains([tag]))
+        if filters.tag is not None:
+            stmt = stmt.where(Note.tags.contains([filters.tag]))
+
+        if filters.model_name is not None:
+            stmt = stmt.where(Note.model_name == filters.model_name)
+
+        search = filters.search.strip()
+        if search is not None:
+            search_value = f"%{search}%"
+
+            stmt = stmt.where(
+                or_(
+                    Note.title.ilike(search_value),
+                    Note.content.ilike(search_value),
+                )
+            )
 
         stmt = stmt.order_by(Note.created_at.desc()).limit(limit).offset(offset)
 
@@ -100,12 +114,17 @@ class NoteRepository:
         notes = list(result.scalars().all())
 
         logger.debug(
-            "Notes list fetched: count={}, limit={}, offset={}, source={}, tag={}",
+            (
+                "Notes list fetched: count={}, limit={}, offset={}, "
+                "source={}, tag={}, model_name={}, search={}"
+            ),
             len(notes),
             limit,
             offset,
-            source,
-            tag,
+            filters.source,
+            filters.tag,
+            filters.model_name,
+            filters.search,
         )
 
         return notes
@@ -133,9 +152,6 @@ class NoteRepository:
 
         Args:
             note: Note instance to soft-delete.
-
-        Returns:
-            None.
         """
         note.deleted_at = datetime.now(UTC)
 
