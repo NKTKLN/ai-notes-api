@@ -14,8 +14,8 @@ class TimestampMixin:
     """Mixin that adds creation and update timestamps to a database model.
 
     Attributes:
-        created_at: Date and time when the record was created.
-        updated_at: Date and time when the record was last updated.
+        created_at (Mapped[datetime]): Date and time when the record was created.
+        updated_at (Mapped[datetime]): Date and time when the record was last updated.
     """
 
     created_at: Mapped[datetime] = mapped_column(
@@ -23,6 +23,7 @@ class TimestampMixin:
         default=lambda: datetime.now(UTC),
         nullable=False,
     )
+
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -35,8 +36,8 @@ class SoftDeleteMixin:
     """Mixin that adds soft deletion support to a database model.
 
     Attributes:
-        deleted_at: Date and time when the record was soft-deleted. If the value
-            is None, the record is considered active.
+        deleted_at (Mapped[datetime]): Date and time when the record was soft-deleted.
+            If the value is None, the record is considered active.
     """
 
     deleted_at: Mapped[datetime | None] = mapped_column(

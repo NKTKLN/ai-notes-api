@@ -12,18 +12,18 @@ class Settings(BaseSettings):
     """Application settings.
 
     Attributes:
-        disable_logging: Whether application logging is disabled.
-        log_level: Logging level used by the application.
-        log_path: Optional path to the log file. If empty, logs are written
-            only to the console.
-        postgres_host: PostgreSQL server host.
-        postgres_port: PostgreSQL server port.
-        postgres_user: PostgreSQL username.
-        postgres_password: PostgreSQL password.
-        postgres_db: PostgreSQL database name.
-        log_format: Format string used by Loguru for log messages.
-        database_url: Async PostgreSQL database connection URL.
-        model_config: Pydantic settings configuration.
+        disable_logging (bool): Whether application logging is disabled.
+        log_level (str): Logging level used by the application.
+        log_path (str): Optional path to the log file. If empty, logs are
+            written only to the console.
+        postgres_host (str): PostgreSQL server host.
+        postgres_port (int): PostgreSQL server port.
+        postgres_user (str): PostgreSQL username.
+        postgres_password (str): PostgreSQL password.
+        postgres_db (str): PostgreSQL database name.
+        log_format (str): Format string used by Loguru for log messages.
+        database_url (str): Async PostgreSQL database connection URL.
+        model_config (SettingsConfigDict): Pydantic settings configuration.
     """
 
     disable_logging: bool = Field(default=False)

@@ -12,6 +12,7 @@ from fastapi.responses import RedirectResponse
 
 from ai_notes_api.api.v1 import router
 from ai_notes_api.core import setup_logger
+from ai_notes_api.exceptions import register_exception_handlers
 
 
 @asynccontextmanager
@@ -22,7 +23,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     handling requests.
 
     Args:
-        _app: FastAPI application instance.
+        _app (FastAPI): FastAPI application instance.
 
     Yields:
         None: Control back to FastAPI while the application is running.
@@ -38,7 +39,10 @@ app: FastAPI = FastAPI(
 )
 
 
-@app.get("/")
+@app.get(
+    "/",
+    include_in_schema=False,
+)
 def root() -> RedirectResponse:
     """Redirect the root endpoint to the API documentation.
 
@@ -51,5 +55,7 @@ def root() -> RedirectResponse:
         status_code=302,
     )
 
+
+register_exception_handlers(app)
 
 app.include_router(router)

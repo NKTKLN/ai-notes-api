@@ -1,0 +1,339 @@
+"""Tests for notes API router."""
+
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from ai_notes_api.api.v1.dependencies import get_note_service
+from ai_notes_api.api.v1.notes import router
+from ai_notes_api.db.models import ModelSource
+from ai_notes_api.schemas import NoteResponseSchema
+
+
+def create_note_response(  # noqa: PLR0913
+    *,
+    note_id: int = 1,
+    title: str = "Test note",
+    content: str = "Test content",
+    tags: list[str] | None = None,
+    source: ModelSource = ModelSource.MANUAL,
+    model_name: str | None = None,
+) -> NoteResponseSchema:
+    """Create note response schema for router tests.
+
+    Args:
+        note_id (int): Unique note identifier.
+        title (str): Note title.
+        content (str): Note content.
+        tags (list[str] | None): Optional note tags.
+        source (ModelSource): Note source.
+        model_name (str | None): Optional name of the model associated with the note.
+
+    Returns:
+        NoteResponseSchema: Note response schema instance.
+    """
+    now = datetime.now(UTC)
+
+    return NoteResponseSchema(
+        id=note_id,
+        title=title,
+        content=content,
+        tags=tags or [],
+        source=source,
+        model_name=model_name,
+        model_metadata={},
+        created_at=now,
+        updated_at=now,
+    )
+
+
+@pytest.fixture
+def note_service_mock() -> AsyncMock:
+    """Create mocked note service.
+
+    Returns:
+        AsyncMock: Mocked note service dependency.
+    """
+    service = AsyncMock()
+    return service
+
+
+@pytest.fixture
+def client(note_service_mock: AsyncMock) -> TestClient:
+    """Create a test client with mocked note service dependency.
+
+    Args:
+        note_service_mock (AsyncMock): Mocked note service dependency.
+
+    Returns:
+        TestClient: FastAPI test client.
+    """
+    app = FastAPI()
+    app.include_router(router)
+
+    app.dependency_overrides[get_note_service] = lambda: note_service_mock
+
+    return TestClient(app)
+
+
+def test_create_note_success(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test successful note creation."""
+    note = create_note_response(
+        note_id=1,
+        title="Test",
+        content="Content",
+        tags=["fastapi"],
+        source=ModelSource.MANUAL,
+    )
+    note_service_mock.create_note.return_value = note
+
+    response = client.post(
+        "/notes",
+        json={
+            "title": "Test",
+            "content": "Content",
+            "tags": ["fastapi"],
+            "source": ModelSource.MANUAL.value,
+            "model_name": None,
+        },
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["id"] == 1
+    assert data["title"] == "Test"
+    assert data["content"] == "Content"
+    assert data["tags"] == ["fastapi"]
+    assert data["source"] == ModelSource.MANUAL.value
+    assert data["model_name"] is None
+
+    note_service_mock.create_note.assert_awaited_once()
+
+    call_args = note_service_mock.create_note.await_args.args
+    assert call_args[0].title == "Test"
+    assert call_args[0].content == "Content"
+    assert call_args[0].tags == ["fastapi"]
+    assert call_args[0].source == ModelSource.MANUAL
+
+
+def test_get_notes_success(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test successful notes list retrieval."""
+    note_service_mock.get_list.return_value = [
+        create_note_response(
+            note_id=2,
+            title="Second Test",
+            content="Second Content",
+            tags=[],
+            source=ModelSource.API,
+        ),
+        create_note_response(
+            note_id=1,
+            title="First Test",
+            content="First Content",
+            tags=["fastapi"],
+            source=ModelSource.MANUAL,
+        ),
+    ]
+
+    response = client.get("/notes?limit=10&offset=0")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["limit"] == 10
+    assert data["offset"] == 0
+    assert data["total"] == 2
+    assert len(data["items"]) == 2
+
+    assert data["items"][0]["id"] == 2
+    assert data["items"][0]["title"] == "Second Test"
+    assert data["items"][0]["source"] == ModelSource.API.value
+
+    assert data["items"][1]["id"] == 1
+    assert data["items"][1]["title"] == "First Test"
+    assert data["items"][1]["source"] == ModelSource.MANUAL.value
+
+    note_service_mock.get_list.assert_awaited_once()
+
+    filters = note_service_mock.get_list.await_args.args[0]
+    assert filters.limit == 10
+    assert filters.offset == 0
+
+
+def test_get_notes_empty_success(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test successful empty notes list retrieval."""
+    note_service_mock.get_list.return_value = []
+
+    response = client.get("/notes?limit=10&offset=0")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["items"] == []
+    assert data["limit"] == 10
+    assert data["offset"] == 0
+    assert data["total"] == 0
+
+    note_service_mock.get_list.assert_awaited_once()
+
+
+def test_get_notes_with_filters_success(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test successful notes list retrieval with filters."""
+    note_service_mock.get_list.return_value = [
+        create_note_response(
+            note_id=1,
+            title="Matching Test",
+            content="FastAPI Content",
+            tags=["fastapi", "python"],
+            source=ModelSource.API,
+            model_name="gpt-4o",
+        )
+    ]
+
+    response = client.get(
+        "/notes",
+        params={
+            "source": ModelSource.API.value,
+            "tag": "fastapi",
+            "model_name": "gpt-4o",
+            "search": "fastapi",
+            "limit": 10,
+            "offset": 0,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+
+    item = data["items"][0]
+
+    assert item["id"] == 1
+    assert item["title"] == "Matching Test"
+    assert item["content"] == "FastAPI Content"
+    assert item["tags"] == ["fastapi", "python"]
+    assert item["source"] == ModelSource.API.value
+    assert item["model_name"] == "gpt-4o"
+
+    note_service_mock.get_list.assert_awaited_once()
+
+    filters = note_service_mock.get_list.await_args.args[0]
+    assert filters.source == ModelSource.API
+    assert filters.tag == "fastapi"
+    assert filters.model_name == "gpt-4o"
+    assert filters.search == "fastapi"
+    assert filters.limit == 10
+    assert filters.offset == 0
+
+
+def test_get_note_success(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test successful note retrieval by identifier."""
+    note_service_mock.get_note.return_value = create_note_response(
+        note_id=1,
+        title="Test",
+        content="Content",
+        tags=["fastapi"],
+        source=ModelSource.MANUAL,
+    )
+
+    response = client.get("/notes/1")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == 1
+    assert data["title"] == "Test"
+    assert data["content"] == "Content"
+    assert data["tags"] == ["fastapi"]
+    assert data["source"] == ModelSource.MANUAL.value
+
+    note_service_mock.get_note.assert_awaited_once_with(1)
+
+
+def test_update_note_success(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test successful note update."""
+    note_service_mock.update_note.return_value = create_note_response(
+        note_id=1,
+        title="New Test",
+        content="New Content",
+        tags=["fastapi"],
+        source=ModelSource.API,
+        model_name="gpt-4o",
+    )
+
+    response = client.patch(
+        "/notes/1",
+        json={
+            "title": "New Test",
+            "content": "New Content",
+            "tags": ["fastapi"],
+            "source": ModelSource.API.value,
+            "model_name": "gpt-4o",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == 1
+    assert data["title"] == "New Test"
+    assert data["content"] == "New Content"
+    assert data["tags"] == ["fastapi"]
+    assert data["source"] == ModelSource.API.value
+    assert data["model_name"] == "gpt-4o"
+
+    note_service_mock.update_note.assert_awaited_once()
+
+    note_id, update_data = note_service_mock.update_note.await_args.args
+
+    assert note_id == 1
+    assert update_data.title == "New Test"
+    assert update_data.content == "New Content"
+    assert update_data.tags == ["fastapi"]
+    assert update_data.source == ModelSource.API
+    assert update_data.model_name == "gpt-4o"
+
+
+def test_delete_note_success(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test successful note deletion."""
+    note_service_mock.delete_note.return_value = None
+
+    response = client.delete("/notes/1")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "deleted"}
+
+    note_service_mock.delete_note.assert_awaited_once_with(1)

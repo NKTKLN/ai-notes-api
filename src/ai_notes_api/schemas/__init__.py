@@ -3,6 +3,22 @@
 This package re-exports schema classes used by the API.
 """
 
-from .healthcheck import HealthcheckResponseSchema
+from .error import ErrorResponseSchema
+from .note import (
+    NoteCreateSchema,
+    NoteListQuerySchema,
+    NoteListResponseSchema,
+    NoteResponseSchema,
+    NoteUpdateSchema,
+)
+from .status import StatusResponseSchema
 
-__all__ = ["HealthcheckResponseSchema"]
+__all__ = [
+    "ErrorResponseSchema",
+    "NoteCreateSchema",
+    "NoteListQuerySchema",
+    "NoteListResponseSchema",
+    "NoteResponseSchema",
+    "NoteUpdateSchema",
+    "StatusResponseSchema",
+]
