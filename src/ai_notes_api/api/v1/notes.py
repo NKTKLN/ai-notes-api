@@ -12,6 +12,8 @@ from ai_notes_api.api.v1.dependencies import get_note_service
 from ai_notes_api.schemas import (
     ErrorResponseSchema,
     NoteCreateSchema,
+    NoteListQuerySchema,
+    NoteListResponseSchema,
     NoteResponseSchema,
     StatusResponseSchema,
 )
@@ -48,6 +50,52 @@ async def create_note(
     note = await service.create_note(data)
 
     return NoteResponseSchema.model_validate(note)
+
+
+@router.get(
+    "",
+    summary="Get notes",
+    description="Return a paginated list of notes.",
+    response_model=NoteListResponseSchema,
+    status_code=status.HTTP_200_OK,
+)
+async def get_notes(
+    filters: Annotated[
+        NoteListQuerySchema,
+        Depends(),
+    ],
+    service: Annotated[NoteService, Depends(get_note_service)],
+) -> NoteListResponseSchema:
+    """Return a paginated list of notes.
+
+    Args:
+        filters (NoteListQuerySchema): Filters and pagination parameters.
+        service (NoteService): Note service dependency used to retrieve notes.
+
+    Returns:
+        NoteListResponseSchema: Paginated list of notes.
+    """
+    logger.info(
+        (
+            "Notes list retrieval requested: limit={}, offset={}, search={}, "
+            "source={}, tag={}, model_name={}"
+        ),
+        filters.limit,
+        filters.offset,
+        filters.search,
+        filters.source,
+        filters.tag,
+        filters.model_name,
+    )
+
+    notes = await service.get_list(filters)
+
+    return NoteListResponseSchema(
+        items=[NoteResponseSchema.model_validate(note) for note in notes],
+        limit=filters.limit,
+        offset=filters.offset,
+        total=len(notes),
+    )
 
 
 @router.get(

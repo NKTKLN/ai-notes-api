@@ -5,8 +5,8 @@ This module provides business logic for working with notes.
 
 from ai_notes_api.db.models import Note
 from ai_notes_api.exceptions import NoteNotFoundError
-from ai_notes_api.repositories import NoteRepository
-from ai_notes_api.schemas import NoteCreateSchema
+from ai_notes_api.repositories import NoteListFilters, NoteRepository
+from ai_notes_api.schemas import NoteCreateSchema, NoteListQuerySchema
 
 
 class NoteService:
@@ -44,6 +44,26 @@ class NoteService:
         )
 
         return await self.repository.create(note)
+
+    async def get_list(self, filters: NoteListQuerySchema) -> list[Note]:
+        """Return a list of notes matching the given filters.
+
+        Args:
+            filters (NoteListQuerySchema): API filters and pagination parameters.
+
+        Returns:
+            list[Note]: List of matching notes.
+        """
+        repository_filters = NoteListFilters(
+            search=filters.search,
+            source=filters.source,
+            tag=filters.tag,
+            model_name=filters.model_name,
+            limit=filters.limit,
+            offset=filters.offset,
+        )
+
+        return await self.repository.get_list(repository_filters)
 
     async def get_note(self, note_id: int) -> Note | None:
         """Return a note by its identifier.

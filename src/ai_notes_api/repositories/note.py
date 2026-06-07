@@ -70,19 +70,11 @@ class NoteRepository:
 
         return note
 
-    async def get_list(
-        self,
-        limit: int = 20,
-        offset: int = 0,
-        filters: NoteListFilters | None = None,
-    ) -> list[Note]:
+    async def get_list(self, filters: NoteListFilters) -> list[Note]:
         """Return a paginated list of notes.
 
         Args:
-            limit (int): Maximum number of notes to return.
-            offset (int): Number of notes to skip before returning results.
-            filters (NoteListFilters | None): Optional filters used to narrow the
-                result set.
+            filters (NoteListFilters | None): Filters used to narrow the result set.
 
         Returns:
             list[Note]: List of matching non-deleted notes ordered by creation
@@ -99,18 +91,24 @@ class NoteRepository:
         if filters.model_name is not None:
             stmt = stmt.where(Note.model_name == filters.model_name)
 
-        search = filters.search.strip()
-        if search is not None:
-            search_value = f"%{search}%"
+        if filters.search is not None:
+            search = filters.search.strip()
 
-            stmt = stmt.where(
-                or_(
-                    Note.title.ilike(search_value),
-                    Note.content.ilike(search_value),
+            if search is not None:
+                search_value = f"%{search}%"
+
+                stmt = stmt.where(
+                    or_(
+                        Note.title.ilike(search_value),
+                        Note.content.ilike(search_value),
+                    )
                 )
-            )
 
-        stmt = stmt.order_by(Note.created_at.desc()).limit(limit).offset(offset)
+        stmt = (
+            stmt.order_by(Note.created_at.desc())
+            .limit(filters.limit)
+            .offset(filters.offset)
+        )
 
         result = await self.session.execute(stmt)
         notes = list(result.scalars().all())
@@ -121,8 +119,8 @@ class NoteRepository:
                 "source={}, tag={}, model_name={}, search={}"
             ),
             len(notes),
-            limit,
-            offset,
+            filters.limit,
+            filters.offset,
             filters.source,
             filters.tag,
             filters.model_name,

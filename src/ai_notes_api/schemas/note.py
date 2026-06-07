@@ -6,6 +6,7 @@ This module defines Pydantic schemas used for note request and response validati
 from datetime import datetime
 from typing import Annotated, Any
 
+from fastapi import Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from ai_notes_api.db.models import ModelSource
@@ -51,6 +52,22 @@ class NoteResponseSchema(BaseModel):
     updated_at: datetime
 
 
+class NoteListResponseSchema(BaseModel):
+    """Schema for returning a paginated list of notes.
+
+    Attributes:
+        items (list[NoteResponseSchema]): List of note response items.
+        limit (int): Maximum number of notes requested.
+        offset (int): Number of notes skipped before returning results.
+        total (int): Total number of matching notes.
+    """
+
+    items: list[NoteResponseSchema]
+    limit: int
+    offset: int
+    total: int
+
+
 class NoteCreateSchema(BaseModel):
     """Schema for creating a note.
 
@@ -92,3 +109,25 @@ class NoteCreateSchema(BaseModel):
     model_metadata: dict[str, Any] = Field(
         default_factory=dict,
     )
+
+
+class NoteListQuerySchema(BaseModel):
+    """Filters and pagination parameters for listing notes.
+
+    Attributes:
+        limit (int): Maximum number of notes to return.
+        offset (int): Number of notes to skip before returning results.
+        search (str | None): Optional text used to search notes by title or
+            content.
+        source (ModelSource | None): Optional note source used to filter
+            results.
+        tag (str | None): Optional tag used to filter results.
+        model_name (str | None): Optional model name used to filter results.
+    """
+
+    limit: int = Query(default=20, ge=1, le=100)
+    offset: int = Query(default=0, ge=0)
+    search: str | None = None
+    source: ModelSource | None = None
+    tag: str | None = None
+    model_name: str | None = None
