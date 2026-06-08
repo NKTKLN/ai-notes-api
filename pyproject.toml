@@ -123,7 +123,7 @@ filterwarnings = [
 known_first_party = ["ai_notes_api"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["uvicorn", "asyncpg", "greenlet"]
+DEP002 = ["uvicorn", "asyncpg", "greenlet", "bcrypt", "python-multipart"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"

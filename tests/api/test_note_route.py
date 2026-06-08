@@ -7,10 +7,26 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from ai_notes_api.api.v1.dependencies import get_note_service
+from ai_notes_api.api.v1.dependencies import get_current_user, get_note_service
 from ai_notes_api.api.v1.notes import router
-from ai_notes_api.db.models import ModelSource
+from ai_notes_api.db.models import ModelSource, User
 from ai_notes_api.schemas import NoteResponseSchema
+
+
+def create_test_user() -> User:
+    """Create current user for router tests.
+
+    Returns:
+        User: Test user model instance.
+    """
+    return User(
+        id=1,
+        email="test-user@example.com",
+        username="test_user",
+        hashed_password="test-password-hash",  # noqa: S106
+        is_active=True,
+        is_superuser=False,
+    )
 
 
 def create_note_response(  # noqa: PLR0913
@@ -51,22 +67,35 @@ def create_note_response(  # noqa: PLR0913
 
 
 @pytest.fixture
+def current_user() -> User:
+    """Create mocked current user.
+
+    Returns:
+        User: Current authenticated user.
+    """
+    return create_test_user()
+
+
+@pytest.fixture
 def note_service_mock() -> AsyncMock:
     """Create mocked note service.
 
     Returns:
         AsyncMock: Mocked note service dependency.
     """
-    service = AsyncMock()
-    return service
+    return AsyncMock()
 
 
 @pytest.fixture
-def client(note_service_mock: AsyncMock) -> TestClient:
-    """Create a test client with mocked note service dependency.
+def client(
+    note_service_mock: AsyncMock,
+    current_user: User,
+) -> TestClient:
+    """Create a test client with mocked dependencies.
 
     Args:
         note_service_mock (AsyncMock): Mocked note service dependency.
+        current_user (User): Mocked authenticated user.
 
     Returns:
         TestClient: FastAPI test client.
@@ -75,6 +104,7 @@ def client(note_service_mock: AsyncMock) -> TestClient:
     app.include_router(router)
 
     app.dependency_overrides[get_note_service] = lambda: note_service_mock
+    app.dependency_overrides[get_current_user] = lambda: current_user
 
     return TestClient(app)
 
@@ -117,11 +147,13 @@ def test_create_note_success(
 
     note_service_mock.create_note.assert_awaited_once()
 
-    call_args = note_service_mock.create_note.await_args.args
-    assert call_args[0].title == "Test"
-    assert call_args[0].content == "Content"
-    assert call_args[0].tags == ["fastapi"]
-    assert call_args[0].source == ModelSource.MANUAL
+    user_id, create_data = note_service_mock.create_note.await_args.args
+
+    assert user_id == 1
+    assert create_data.title == "Test"
+    assert create_data.content == "Content"
+    assert create_data.tags == ["fastapi"]
+    assert create_data.source == ModelSource.MANUAL
 
 
 def test_get_notes_success(
@@ -167,7 +199,9 @@ def test_get_notes_success(
 
     note_service_mock.get_list.assert_awaited_once()
 
-    filters = note_service_mock.get_list.await_args.args[0]
+    user_id, filters = note_service_mock.get_list.await_args.args
+
+    assert user_id == 1
     assert filters.limit == 10
     assert filters.offset == 0
 
@@ -191,6 +225,12 @@ def test_get_notes_empty_success(
     assert data["total"] == 0
 
     note_service_mock.get_list.assert_awaited_once()
+
+    user_id, filters = note_service_mock.get_list.await_args.args
+
+    assert user_id == 1
+    assert filters.limit == 10
+    assert filters.offset == 0
 
 
 def test_get_notes_with_filters_success(
@@ -239,7 +279,9 @@ def test_get_notes_with_filters_success(
 
     note_service_mock.get_list.assert_awaited_once()
 
-    filters = note_service_mock.get_list.await_args.args[0]
+    user_id, filters = note_service_mock.get_list.await_args.args
+
+    assert user_id == 1
     assert filters.source == ModelSource.API
     assert filters.tag == "fastapi"
     assert filters.model_name == "gpt-4o"
@@ -273,7 +315,7 @@ def test_get_note_success(
     assert data["tags"] == ["fastapi"]
     assert data["source"] == ModelSource.MANUAL.value
 
-    note_service_mock.get_note.assert_awaited_once_with(1)
+    note_service_mock.get_note.assert_awaited_once_with(1, 1)
 
 
 def test_update_note_success(
@@ -314,8 +356,9 @@ def test_update_note_success(
 
     note_service_mock.update_note.assert_awaited_once()
 
-    note_id, update_data = note_service_mock.update_note.await_args.args
+    user_id, note_id, update_data = note_service_mock.update_note.await_args.args
 
+    assert user_id == 1
     assert note_id == 1
     assert update_data.title == "New Test"
     assert update_data.content == "New Content"
@@ -336,4 +379,106 @@ def test_delete_note_success(
     assert response.status_code == 200
     assert response.json() == {"status": "deleted"}
 
-    note_service_mock.delete_note.assert_awaited_once_with(1)
+    note_service_mock.delete_note.assert_awaited_once_with(1, 1)
+
+
+def test_create_note_uses_current_user_id(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test that note creation passes current user id to service."""
+    note_service_mock.create_note.return_value = create_note_response(note_id=1)
+
+    response = client.post(
+        "/notes",
+        json={
+            "title": "Test note",
+            "content": "Test content",
+            "tags": [],
+            "source": ModelSource.MANUAL.value,
+            "model_name": None,
+        },
+    )
+
+    assert response.status_code == 201
+
+    note_service_mock.create_note.assert_awaited_once()
+
+    user_id, _ = note_service_mock.create_note.await_args.args
+
+    assert user_id == 1
+
+
+def test_get_notes_uses_current_user_id(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test that notes list retrieval passes current user id to service."""
+    note_service_mock.get_list.return_value = []
+
+    response = client.get("/notes")
+
+    assert response.status_code == 200
+
+    note_service_mock.get_list.assert_awaited_once()
+
+    user_id, _ = note_service_mock.get_list.await_args.args
+
+    assert user_id == 1
+
+
+def test_get_note_uses_current_user_id(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test that note retrieval passes current user id to service."""
+    note_service_mock.get_note.return_value = create_note_response(note_id=1)
+
+    response = client.get("/notes/1")
+
+    assert response.status_code == 200
+
+    note_service_mock.get_note.assert_awaited_once_with(1, 1)
+
+
+def test_update_note_uses_current_user_id(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test that note update passes current user id to service."""
+    note_service_mock.update_note.return_value = create_note_response(
+        note_id=1,
+        title="Updated",
+        content="Updated content",
+    )
+
+    response = client.patch(
+        "/notes/1",
+        json={
+            "title": "Updated",
+            "content": "Updated content",
+        },
+    )
+
+    assert response.status_code == 200
+
+    note_service_mock.update_note.assert_awaited_once()
+
+    user_id, note_id, _ = note_service_mock.update_note.await_args.args
+
+    assert user_id == 1
+    assert note_id == 1
+
+
+def test_delete_note_uses_current_user_id(
+    client: TestClient,
+    note_service_mock: AsyncMock,
+) -> None:
+    """Test that note deletion passes current user id to service."""
+    note_service_mock.delete_note.return_value = None
+
+    response = client.delete("/notes/1")
+
+    assert response.status_code == 200
+
+    note_service_mock.delete_note.assert_awaited_once_with(1, 1)

@@ -25,16 +25,18 @@ class NoteService:
         """
         self.repository = repository
 
-    async def create_note(self, data: NoteCreateSchema) -> Note:
+    async def create_note(self, user_id: int, data: NoteCreateSchema) -> Note:
         """Create a note.
 
         Args:
+            user_id (int): Unique identifier of the user creating the note.
             data (NoteCreateSchema): Validated data used to create the note.
 
         Returns:
             Note: Created note instance.
         """
         note = Note(
+            user_id=user_id,
             title=data.title,
             content=data.content,
             tags=data.tags,
@@ -45,10 +47,11 @@ class NoteService:
 
         return await self.repository.create(note)
 
-    async def get_list(self, filters: NoteListQuerySchema) -> list[Note]:
+    async def get_list(self, user_id: int, filters: NoteListQuerySchema) -> list[Note]:
         """Return a list of notes matching the given filters.
 
         Args:
+            user_id (int): Unique identifier of the user whose notes are requested.
             filters (NoteListQuerySchema): API filters and pagination parameters.
 
         Returns:
@@ -63,12 +66,13 @@ class NoteService:
             offset=filters.offset,
         )
 
-        return await self.repository.get_list(repository_filters)
+        return await self.repository.get_list(user_id, repository_filters)
 
-    async def get_note(self, note_id: int) -> Note:
+    async def get_note(self, user_id: int, note_id: int) -> Note:
         """Return a note by its identifier.
 
         Args:
+            user_id (int): Unique identifier of the user who owns the note.
             note_id (int): Unique note identifier.
 
         Returns:
@@ -77,17 +81,23 @@ class NoteService:
         Raises:
             NoteNotFoundError: If no note with the given identifier exists.
         """
-        note = await self.repository.get_by_id(note_id)
+        note = await self.repository.get_by_id(user_id, note_id)
 
         if note is None:
             raise NoteNotFoundError()
 
         return note
 
-    async def update_note(self, note_id: int, note_update: NoteUpdateSchema) -> Note:
+    async def update_note(
+        self,
+        user_id: int,
+        note_id: int,
+        note_update: NoteUpdateSchema,
+    ) -> Note:
         """Update a note by its identifier.
 
         Args:
+            user_id (int): Unique identifier of the user who owns the note.
             note_id (int): Unique note identifier.
             note_update (NoteUpdateSchema): Validated note update data.
 
@@ -97,7 +107,7 @@ class NoteService:
         Raises:
             NoteNotFoundError: If no note with the given identifier exists.
         """
-        note = await self.repository.get_by_id(note_id)
+        note = await self.repository.get_by_id(user_id, note_id)
 
         if note is None:
             raise NoteNotFoundError()
@@ -110,16 +120,17 @@ class NoteService:
 
         return note
 
-    async def delete_note(self, note_id: int) -> None:
+    async def delete_note(self, user_id: int, note_id: int) -> None:
         """Delete a note by its identifier.
 
         Args:
+            user_id (int): Unique identifier of the user who owns the note.
             note_id (int): Unique note identifier to delete.
 
         Raises:
             NoteNotFoundError: If no note with the given identifier exists.
         """
-        note = await self.repository.get_by_id(note_id)
+        note = await self.repository.get_by_id(user_id, note_id)
 
         if note is None:
             raise NoteNotFoundError()
