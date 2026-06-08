@@ -10,6 +10,8 @@ from loguru import logger
 
 from ai_notes_api.api.v1.dependencies import get_auth_service
 from ai_notes_api.schemas import (
+    LoginRequestSchema,
+    TokenResponseSchema,
     UserCreateSchema,
     UserResponseSchema,
 )
@@ -50,3 +52,39 @@ async def register_user(
     user = await service.register_user(data)
 
     return UserResponseSchema.model_validate(user)
+
+
+@router.post(
+    "/login",
+    summary="Log in user",
+    description="Authenticate a user and return an access token.",
+    response_model=TokenResponseSchema,
+    status_code=status.HTTP_200_OK,
+)
+async def login_user(
+    data: LoginRequestSchema,
+    service: Annotated[AuthService, Depends(get_auth_service)],
+) -> TokenResponseSchema:
+    """Log in a user.
+
+    Args:
+        data (LoginRequestSchema): Validated user login data.
+        service (AuthService): Authentication service dependency used to
+            authenticate the user.
+
+    Returns:
+        TokenResponseSchema: Access token data.
+
+    Raises:
+        InvalidCredentialsError: If the email or password is invalid.
+        InactiveUserError: If the user account is inactive.
+    """
+    logger.info("User login requested")
+
+    user = await service.authenticate_user(data)
+    access_token = service.create_token_for_user(user)
+
+    return TokenResponseSchema(
+        access_token=access_token,
+        token_type="bearer",  # noqa: S106
+    )
