@@ -5,7 +5,7 @@ registration utilities.
 """
 
 from .base import AppException, register_exception_handlers
-from .notes import NoteNotFoundError
+from .note import NoteNotFoundError
 
 __all__ = [
     "AppException",

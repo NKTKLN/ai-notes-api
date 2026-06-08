@@ -8,28 +8,15 @@ from datetime import UTC, datetime
 
 from loguru import logger
 from sqlalchemy import or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_notes_api.db.models import Note
 from ai_notes_api.repositories.filters import NoteListFilters
 
+from .base import BaseRepository
 
-class NoteRepository:
-    """Repository for note database operations.
 
-    Args:
-        session (AsyncSession): Asynchronous SQLAlchemy session used to execute
-            database operations.
-    """
-
-    def __init__(self, session: AsyncSession) -> None:
-        """Initialize the note repository.
-
-        Args:
-            session (AsyncSession): Asynchronous SQLAlchemy session used by the
-                repository.
-        """
-        self.session = session
+class NoteRepository(BaseRepository):
+    """Repository for note database operations."""
 
     async def create(self, note: Note) -> Note:
         """Create a note in the database.

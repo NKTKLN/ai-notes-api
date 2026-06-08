@@ -8,12 +8,13 @@ from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import String
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
 from .datetime import SoftDeleteMixin, TimestampMixin
+from .user import User
 
 
 class ModelSource(StrEnum):
@@ -37,6 +38,8 @@ class Note(Base, TimestampMixin, SoftDeleteMixin):
 
     Attributes:
         id (Mapped[int]): Unique note identifier.
+        user_id (Mapped[int]): Identifier of the user who owns the note.
+        user (Mapped[User]): User who owns the note.
         title (Mapped[str]): Note title.
         content (Mapped[str]): Main note content.
         tags (Mapped[list[str]]): List of tags associated with the note.
@@ -52,6 +55,19 @@ class Note(Base, TimestampMixin, SoftDeleteMixin):
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "users.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    user: Mapped[User] = relationship(
+        back_populates="notes",
     )
 
     title: Mapped[str] = mapped_column(
