@@ -34,16 +34,22 @@ class NoteRepository(BaseRepository):
 
         return note
 
-    async def get_by_id(self, note_id: int) -> Note | None:
+    async def get_by_id(self, user_id: int, note_id: int) -> Note | None:
         """Return a note by its identifier.
 
         Args:
+            user_id (int): Unique identifier of the user who owns the note.
             note_id (int): Unique note identifier.
 
         Returns:
             Note | None: Matching note if found and not soft-deleted; otherwise, None.
         """
-        stmt = select(Note).where(Note.id == note_id).where(Note.deleted_at.is_(None))
+        stmt = (
+            select(Note)
+            .where(Note.user_id == user_id)
+            .where(Note.id == note_id)
+            .where(Note.deleted_at.is_(None))
+        )
 
         result = await self.session.execute(stmt)
         note = result.scalar_one_or_none()
@@ -55,17 +61,20 @@ class NoteRepository(BaseRepository):
 
         return note
 
-    async def get_list(self, filters: NoteListFilters) -> list[Note]:
+    async def get_list(self, user_id: int, filters: NoteListFilters) -> list[Note]:
         """Return a paginated list of notes.
 
         Args:
-            filters (NoteListFilters | None): Filters used to narrow the result set.
+            user_id (int): Unique identifier of the user whose notes are requested.
+            filters (NoteListFilters): Filters used to narrow the result set.
 
         Returns:
             list[Note]: List of matching non-deleted notes ordered by creation
             date in descending order.
         """
-        stmt = select(Note).where(Note.deleted_at.is_(None))
+        stmt = (
+            select(Note).where(Note.user_id == user_id).where(Note.deleted_at.is_(None))
+        )
 
         if filters.source is not None:
             stmt = stmt.where(Note.source == filters.source)
@@ -100,10 +109,11 @@ class NoteRepository(BaseRepository):
 
         logger.debug(
             (
-                "Notes list fetched: count={}, limit={}, offset={}, "
+                "Notes list fetched: count={}, user_id={}, limit={}, offset={}, "
                 "source={}, tag={}, model_name={}, search={}"
             ),
             len(notes),
+            user_id,
             filters.limit,
             filters.offset,
             filters.source,
