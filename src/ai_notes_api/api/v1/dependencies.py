@@ -11,6 +11,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_notes_api.core import decode_access_token
+from ai_notes_api.db.models import User
 from ai_notes_api.db.session import get_db
 from ai_notes_api.exceptions import InvalidTokenError
 from ai_notes_api.repositories import NoteRepository, UserRepository
@@ -81,3 +82,24 @@ def get_auth_service(
     repository = UserRepository(session)
 
     return AuthService(repository)
+
+
+async def get_current_user(
+    user_id: Annotated[int, Depends(get_current_user_id)],
+    service: Annotated[AuthService, Depends(get_auth_service)],
+) -> User:
+    """Return the current authenticated user.
+
+    Args:
+        user_id (int): Current authenticated user identifier.
+        service (AuthService): Authentication service dependency used to
+            retrieve the user.
+
+    Returns:
+        User: Current authenticated user.
+
+    Raises:
+        InvalidTokenError: If the token payload is invalid.
+        UserNotFoundError: If no user with the authenticated identifier exists.
+    """
+    return await service.get_user(user_id)

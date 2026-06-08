@@ -9,7 +9,11 @@ from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from loguru import logger
 
-from ai_notes_api.api.v1.dependencies import get_auth_service, get_current_user_id
+from ai_notes_api.api.v1.dependencies import get_auth_service
+from ai_notes_api.api.v1.dependencies import (
+    get_current_user as get_current_user_dependency,
+)
+from ai_notes_api.db.models import User
 from ai_notes_api.schemas import (
     TokenResponseSchema,
     UserCreateSchema,
@@ -98,16 +102,13 @@ async def login_user(
     response_model=UserResponseSchema,
     status_code=status.HTTP_200_OK,
 )
-async def get_current_user(
-    user_id: Annotated[int, Depends(get_current_user_id)],
-    service: Annotated[AuthService, Depends(get_auth_service)],
+async def get_current_user_profile(
+    user: Annotated[User, Depends(get_current_user_dependency)],
 ) -> UserResponseSchema:
     """Return the currently authenticated user.
 
     Args:
-        user_id (int): Current authenticated user identifier.
-        service (AuthService): Authentication service dependency used to
-            retrieve the user.
+        user (User): Current authenticated user.
 
     Returns:
         UserResponseSchema: Current authenticated user data.
@@ -116,8 +117,6 @@ async def get_current_user(
         InvalidTokenError: If the access token is invalid.
         UserNotFoundError: If no user with the authenticated identifier exists.
     """
-    logger.info("Current user retrieval requested: user_id={}", user_id)
-
-    user = await service.get_user(user_id)
+    logger.info("Current user retrieval requested: user_id={}", user.id)
 
     return UserResponseSchema.model_validate(user)
