@@ -41,10 +41,10 @@ class FakeUserRepository:
         user.id = 1
 
         if user.is_active is None:
-            user.is_active = True
+            user.is_active = True  # type: ignore[unreachable]
 
         if user.is_superuser is None:
-            user.is_superuser = False
+            user.is_superuser = False  # type: ignore[unreachable]
 
         self.created_user = user
         self.users[user.id] = user
