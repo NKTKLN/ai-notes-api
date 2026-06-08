@@ -13,11 +13,10 @@ from .note import (
 )
 from .status import StatusResponseSchema
 from .token import TokenResponseSchema
-from .user import LoginRequestSchema, UserCreateSchema, UserResponseSchema
+from .user import UserCreateSchema, UserResponseSchema
 
 __all__ = [
     "ErrorResponseSchema",
-    "LoginRequestSchema",
     "NoteCreateSchema",
     "NoteListQuerySchema",
     "NoteListResponseSchema",

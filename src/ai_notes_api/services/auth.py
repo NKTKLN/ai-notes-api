@@ -13,7 +13,7 @@ from ai_notes_api.exceptions import (
     UserNotFoundError,
 )
 from ai_notes_api.repositories import UserRepository
-from ai_notes_api.schemas import LoginRequestSchema, UserCreateSchema
+from ai_notes_api.schemas import UserCreateSchema
 
 
 class AuthService:
@@ -60,11 +60,12 @@ class AuthService:
 
         return await self.repository.create(user)
 
-    async def authenticate_user(self, data: LoginRequestSchema) -> User:
+    async def authenticate_user(self, email: str, password: str) -> User:
         """Authenticate a user by email and password.
 
         Args:
-            data (LoginRequestSchema): Validated login request data.
+            email (str): User email address.
+            password (str): Raw user password.
 
         Returns:
             User: Authenticated active user.
@@ -73,12 +74,12 @@ class AuthService:
             InvalidCredentialsError: If the email or password is invalid.
             InactiveUserError: If the user account is inactive.
         """
-        user = await self.repository.get_by_email(data.email)
+        user = await self.repository.get_by_email(email)
 
         if user is None:
             raise InvalidCredentialsError()
 
-        if not verify_password(data.password, user.hashed_password):
+        if not verify_password(password, user.hashed_password):
             raise InvalidCredentialsError()
 
         if not user.is_active:
