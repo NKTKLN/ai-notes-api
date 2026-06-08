@@ -10,6 +10,7 @@ from ai_notes_api.exceptions import (
     InactiveUserError,
     InvalidCredentialsError,
     UserAlreadyExistsError,
+    UserNotFoundError,
 )
 from ai_notes_api.repositories import UserRepository
 from ai_notes_api.schemas import LoginRequestSchema, UserCreateSchema
@@ -82,6 +83,25 @@ class AuthService:
 
         if not user.is_active:
             raise InactiveUserError()
+
+        return user
+
+    async def get_user(self, user_id: int) -> User:
+        """Return a user by its identifier.
+
+        Args:
+            user_id (int): Unique user identifier.
+
+        Returns:
+            User: Matching user.
+
+        Raises:
+            UserNotFoundError: If no user with the given identifier exists.
+        """
+        user = await self.repository.get_by_id(user_id)
+
+        if user is None:
+            raise UserNotFoundError()
 
         return user
 
