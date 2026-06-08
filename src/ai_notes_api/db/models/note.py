@@ -5,14 +5,17 @@ identify how a note was created.
 """
 
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ai_notes_api.db.models import Base, SoftDeleteMixin, TimestampMixin, User
+from ai_notes_api.db.models import Base, SoftDeleteMixin, TimestampMixin
+
+if TYPE_CHECKING:
+    from ai_notes_api.db.models.user import User
 
 
 class ModelSource(StrEnum):
@@ -64,7 +67,7 @@ class Note(Base, TimestampMixin, SoftDeleteMixin):
         index=True,
     )
 
-    user: Mapped[User] = relationship(
+    user: Mapped["User"] = relationship(
         back_populates="notes",
     )
 
