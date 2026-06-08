@@ -21,6 +21,9 @@ class Settings(BaseSettings):
         postgres_user (str): PostgreSQL username.
         postgres_password (str): PostgreSQL password.
         postgres_db (str): PostgreSQL database name.
+        jwt_secret_key (str): Secret key used to sign and verify JWT tokens.
+        jwt_algorithm (str): Algorithm used to sign and verify JWT tokens.
+        access_token_expire_minutes (int): Access token lifetime in minutes.
         log_format (str): Format string used by Loguru for log messages.
         database_url (str): Async PostgreSQL database connection URL.
         model_config (SettingsConfigDict): Pydantic settings configuration.
@@ -35,6 +38,10 @@ class Settings(BaseSettings):
     postgres_user: str = Field(...)
     postgres_password: str = Field(...)
     postgres_db: str = Field(...)
+
+    jwt_secret_key: str = Field(...)
+    jwt_algorithm: str = Field(default="HS256")
+    access_token_expire_minutes: int = Field(default=30)
 
     log_format: str = (
         "<cyan>[{time:DD/MM/YY HH:mm:ss}]</cyan> "

@@ -12,9 +12,7 @@ from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .base import Base
-from .datetime import SoftDeleteMixin, TimestampMixin
-from .user import User
+from ai_notes_api.db.models import Base, SoftDeleteMixin, TimestampMixin, User
 
 
 class ModelSource(StrEnum):

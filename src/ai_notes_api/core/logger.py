@@ -8,7 +8,7 @@ import sys
 
 from loguru import logger
 
-from .config import settings
+from ai_notes_api.core import settings
 
 
 def setup_logger() -> None:

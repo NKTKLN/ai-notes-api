@@ -8,8 +8,7 @@ from loguru import logger
 from sqlalchemy import select
 
 from ai_notes_api.db.models import User
-
-from .base import BaseRepository
+from ai_notes_api.repositories.base import BaseRepository
 
 
 class UserRepository(BaseRepository):
@@ -51,6 +50,27 @@ class UserRepository(BaseRepository):
             logger.debug("User not found: id={}", user_id)
         else:
             logger.debug("User found: id={}", user_id)
+
+        return user
+
+    async def get_by_email(self, user_email: str) -> User | None:
+        """Return a user by its email.
+
+        Args:
+            user_email (str): User Email.
+
+        Returns:
+            User | None: Matching user if found; otherwise, None.
+        """
+        stmt = select(User).where(User.email == user_email)
+
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            logger.debug("User not found: email={}", user_email)
+        else:
+            logger.debug("User found: email={}", user_email)
 
         return user
 
