@@ -34,6 +34,8 @@ dev = [
   "httpx>=0.28.1",
   "pytest-asyncio>=1.4.0",
   "aiosqlite>=0.22.1",
+  "types-python-jose>=3.5.0.20260408",
+  "types-passlib>=1.7.7.20260211",
 ]
 
 [build-system]
