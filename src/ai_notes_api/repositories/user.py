@@ -8,8 +8,7 @@ from loguru import logger
 from sqlalchemy import select
 
 from ai_notes_api.db.models import User
-
-from .base import BaseRepository
+from ai_notes_api.repositories.base import BaseRepository
 
 
 class UserRepository(BaseRepository):

@@ -8,11 +8,10 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .base import Base
-from .datetime import TimestampMixin
+from ai_notes_api.db.models import Base, TimestampMixin
 
 if TYPE_CHECKING:
-    from .note import Note
+    from ai_notes_api.db.models.note import Note
 
 
 class User(Base, TimestampMixin):

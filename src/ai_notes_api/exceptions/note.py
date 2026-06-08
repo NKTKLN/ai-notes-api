@@ -3,7 +3,7 @@
 This module defines application exceptions related to notes.
 """
 
-from .base import AppException
+from ai_notes_api.exceptions.base import AppException
 
 
 class NoteNotFoundError(AppException):
