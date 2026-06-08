@@ -40,27 +40,38 @@ class FakeNoteRepository:
         self.notes[note.id] = note
         return note
 
-    async def get_by_id(self, note_id: int) -> Note | None:
+    async def get_by_id(self, user_id: int, note_id: int) -> Note | None:
         """Return a note by its identifier.
 
         Args:
+            user_id (int): Unique identifier of the user who owns the note.
             note_id (int): Unique note identifier.
 
         Returns:
             Note | None: Matching note if found; otherwise, None.
         """
-        return self.notes.get(note_id)
+        note = self.notes.get(note_id)
 
-    async def get_list(self, filters: NoteListFilters) -> list[Note]:
+        if note is not None and note.user_id == user_id:
+            return note
+
+        return None
+
+    async def get_list(self, user_id: int, filters: NoteListFilters) -> list[Note]:
         """Return notes matching the provided filters.
 
         Args:
+            user_id (int): Unique identifier of the user whose notes are requested.
             filters (NoteListFilters): Filters and pagination parameters.
 
         Returns:
             list[Note]: List of matching non-deleted notes.
         """
-        notes = [note for note in self.notes.values() if note.deleted_at is None]
+        notes = [
+            note
+            for note in self.notes.values()
+            if note.deleted_at is None and note.user_id == user_id
+        ]
 
         if filters.source is not None:
             notes = [note for note in notes if note.source == filters.source]
@@ -103,9 +114,6 @@ class FakeNoteRepository:
 
         Raises:
             NoteNotFoundError: If no note with the given identifier exists.
-
-        Returns:
-            None.
         """
         stored_note = self.notes.get(note.id)
 
@@ -128,9 +136,10 @@ async def test_create_note_success() -> None:
         source=ModelSource.MANUAL,
     )
 
-    note = await service.create_note(data)
+    note = await service.create_note(1, data)
 
     assert note.id == 1
+    assert note.user_id == 1
     assert note.title == "Test"
     assert note.content == "Content"
     assert note.tags == ["fastapi"]
@@ -145,26 +154,45 @@ async def test_get_note_success() -> None:
 
     repository.notes[1] = Note(
         id=1,
+        user_id=1,
         title="Test",
         content="Content",
         tags=["fastapi"],
         source=ModelSource.MANUAL,
     )
 
-    note = await service.get_note(1)
+    note = await service.get_note(1, 1)
 
-    assert note is not None
     assert note.title == "Test"
 
 
 @pytest.mark.asyncio
-async def test_get_note_not_found() -> None:
+async def test_get_note_not_found_by_id() -> None:
     """Test that note retrieval raises an error when the note is not found."""
     repository = FakeNoteRepository()
     service = NoteService(repository=cast(NoteRepository, repository))
 
     with pytest.raises(NoteNotFoundError):
-        await service.get_note(999)
+        await service.get_note(1, 999)
+
+
+@pytest.mark.asyncio
+async def test_get_note_not_found_for_another_user() -> None:
+    """Test that another user's note cannot be retrieved."""
+    repository = FakeNoteRepository()
+    service = NoteService(repository=cast(NoteRepository, repository))
+
+    repository.notes[1] = Note(
+        id=1,
+        user_id=1,
+        title="Test",
+        content="Content",
+        tags=["fastapi"],
+        source=ModelSource.MANUAL,
+    )
+
+    with pytest.raises(NoteNotFoundError):
+        await service.get_note(2, 1)
 
 
 @pytest.mark.asyncio
@@ -175,6 +203,7 @@ async def test_update_note_success() -> None:
 
     repository.notes[1] = Note(
         id=1,
+        user_id=1,
         title="Old Test",
         content="Old Content",
         tags=[],
@@ -188,7 +217,7 @@ async def test_update_note_success() -> None:
         source=ModelSource.MANUAL,
     )
 
-    note = await service.update_note(1, data)
+    note = await service.update_note(1, 1, data)
 
     assert note.title == "New Test"
     assert note.content == "New Content"
@@ -197,7 +226,7 @@ async def test_update_note_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_note_not_found() -> None:
+async def test_update_note_not_found_by_id() -> None:
     """Test that note update raises an error when the note is not found."""
     repository = FakeNoteRepository()
     service = NoteService(repository=cast(NoteRepository, repository))
@@ -210,7 +239,33 @@ async def test_update_note_not_found() -> None:
     )
 
     with pytest.raises(NoteNotFoundError):
-        await service.update_note(999, data)
+        await service.update_note(1, 999, data)
+
+
+@pytest.mark.asyncio
+async def test_update_note_not_found_for_another_user() -> None:
+    """Test that another user's note cannot be updated."""
+    repository = FakeNoteRepository()
+    service = NoteService(repository=cast(NoteRepository, repository))
+
+    repository.notes[1] = Note(
+        id=1,
+        user_id=1,
+        title="Old Test",
+        content="Old Content",
+        tags=[],
+        source=ModelSource.MANUAL,
+    )
+
+    data = NoteUpdateSchema(
+        title="New Test",
+        content="New Content",
+        tags=["fastapi"],
+        source=ModelSource.MANUAL,
+    )
+
+    with pytest.raises(NoteNotFoundError):
+        await service.update_note(2, 1, data)
 
 
 @pytest.mark.asyncio
@@ -221,25 +276,45 @@ async def test_delete_note_success() -> None:
 
     repository.notes[1] = Note(
         id=1,
+        user_id=1,
         title="Test",
         content="Content",
         tags=["fastapi"],
         source=ModelSource.MANUAL,
     )
 
-    await service.delete_note(1)
+    await service.delete_note(1, 1)
 
     assert repository.notes[1].deleted_at is not None
 
 
 @pytest.mark.asyncio
-async def test_delete_note_not_found() -> None:
+async def test_delete_note_not_found_by_id() -> None:
     """Test that note deletion raises an error when the note is not found."""
     repository = FakeNoteRepository()
     service = NoteService(repository=cast(NoteRepository, repository))
 
     with pytest.raises(NoteNotFoundError):
-        await service.delete_note(999)
+        await service.delete_note(1, 999)
+
+
+@pytest.mark.asyncio
+async def test_delete_note_not_found_for_another_user() -> None:
+    """Test that another user's note cannot be deleted."""
+    repository = FakeNoteRepository()
+    service = NoteService(repository=cast(NoteRepository, repository))
+
+    repository.notes[1] = Note(
+        id=1,
+        user_id=1,
+        title="Test",
+        content="Content",
+        tags=["fastapi"],
+        source=ModelSource.MANUAL,
+    )
+
+    with pytest.raises(NoteNotFoundError):
+        await service.delete_note(2, 1)
 
 
 @pytest.mark.asyncio
@@ -250,6 +325,7 @@ async def test_get_notes_list_success() -> None:
 
     repository.notes[1] = Note(
         id=1,
+        user_id=1,
         title="First Test",
         content="First Content",
         tags=["fastapi"],
@@ -258,10 +334,20 @@ async def test_get_notes_list_success() -> None:
 
     repository.notes[2] = Note(
         id=2,
+        user_id=1,
         title="Second Test",
         content="Second Content",
         tags=[],
         source=ModelSource.API,
+    )
+
+    repository.notes[3] = Note(
+        id=3,
+        user_id=2,
+        title="First Test",
+        content="First Content",
+        tags=["fastapi"],
+        source=ModelSource.MANUAL,
     )
 
     data = NoteListQuerySchema(
@@ -271,9 +357,10 @@ async def test_get_notes_list_success() -> None:
         tag="fastapi",
     )
 
-    notes = await service.get_list(data)
+    notes = await service.get_list(1, data)
 
     assert len(notes) == 1
     assert notes[0].title == "First Test"
+    assert notes[0].user_id == 1
     assert notes[0].source == ModelSource.MANUAL
     assert "fastapi" in notes[0].tags
