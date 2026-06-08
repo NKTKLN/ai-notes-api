@@ -12,8 +12,6 @@ from ai_notes_api.api.v1.notes import router
 from ai_notes_api.db.models import ModelSource, User
 from ai_notes_api.schemas import NoteResponseSchema
 
-TEST_USER_ID = 1
-
 
 def create_test_user() -> User:
     """Create current user for router tests.
@@ -22,7 +20,7 @@ def create_test_user() -> User:
         User: Test user model instance.
     """
     return User(
-        id=TEST_USER_ID,
+        id=1,
         email="test-user@example.com",
         username="test_user",
         hashed_password="test-password-hash",  # noqa: S106
@@ -151,7 +149,7 @@ def test_create_note_success(
 
     user_id, create_data = note_service_mock.create_note.await_args.args
 
-    assert user_id == TEST_USER_ID
+    assert user_id == 1
     assert create_data.title == "Test"
     assert create_data.content == "Content"
     assert create_data.tags == ["fastapi"]
@@ -203,7 +201,7 @@ def test_get_notes_success(
 
     user_id, filters = note_service_mock.get_list.await_args.args
 
-    assert user_id == TEST_USER_ID
+    assert user_id == 1
     assert filters.limit == 10
     assert filters.offset == 0
 
@@ -230,7 +228,7 @@ def test_get_notes_empty_success(
 
     user_id, filters = note_service_mock.get_list.await_args.args
 
-    assert user_id == TEST_USER_ID
+    assert user_id == 1
     assert filters.limit == 10
     assert filters.offset == 0
 
@@ -283,7 +281,7 @@ def test_get_notes_with_filters_success(
 
     user_id, filters = note_service_mock.get_list.await_args.args
 
-    assert user_id == TEST_USER_ID
+    assert user_id == 1
     assert filters.source == ModelSource.API
     assert filters.tag == "fastapi"
     assert filters.model_name == "gpt-4o"
@@ -317,7 +315,7 @@ def test_get_note_success(
     assert data["tags"] == ["fastapi"]
     assert data["source"] == ModelSource.MANUAL.value
 
-    note_service_mock.get_note.assert_awaited_once_with(TEST_USER_ID, 1)
+    note_service_mock.get_note.assert_awaited_once_with(1, 1)
 
 
 def test_update_note_success(
@@ -360,7 +358,7 @@ def test_update_note_success(
 
     user_id, note_id, update_data = note_service_mock.update_note.await_args.args
 
-    assert user_id == TEST_USER_ID
+    assert user_id == 1
     assert note_id == 1
     assert update_data.title == "New Test"
     assert update_data.content == "New Content"
@@ -381,7 +379,7 @@ def test_delete_note_success(
     assert response.status_code == 200
     assert response.json() == {"status": "deleted"}
 
-    note_service_mock.delete_note.assert_awaited_once_with(TEST_USER_ID, 1)
+    note_service_mock.delete_note.assert_awaited_once_with(1, 1)
 
 
 def test_create_note_uses_current_user_id(
@@ -408,7 +406,7 @@ def test_create_note_uses_current_user_id(
 
     user_id, _ = note_service_mock.create_note.await_args.args
 
-    assert user_id == TEST_USER_ID
+    assert user_id == 1
 
 
 def test_get_notes_uses_current_user_id(
@@ -426,7 +424,7 @@ def test_get_notes_uses_current_user_id(
 
     user_id, _ = note_service_mock.get_list.await_args.args
 
-    assert user_id == TEST_USER_ID
+    assert user_id == 1
 
 
 def test_get_note_uses_current_user_id(
@@ -440,7 +438,7 @@ def test_get_note_uses_current_user_id(
 
     assert response.status_code == 200
 
-    note_service_mock.get_note.assert_awaited_once_with(TEST_USER_ID, 1)
+    note_service_mock.get_note.assert_awaited_once_with(1, 1)
 
 
 def test_update_note_uses_current_user_id(
@@ -468,7 +466,7 @@ def test_update_note_uses_current_user_id(
 
     user_id, note_id, _ = note_service_mock.update_note.await_args.args
 
-    assert user_id == TEST_USER_ID
+    assert user_id == 1
     assert note_id == 1
 
 
@@ -483,4 +481,4 @@ def test_delete_note_uses_current_user_id(
 
     assert response.status_code == 200
 
-    note_service_mock.delete_note.assert_awaited_once_with(TEST_USER_ID, 1)
+    note_service_mock.delete_note.assert_awaited_once_with(1, 1)
