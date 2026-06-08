@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from loguru import logger
 
-from ai_notes_api.api.v1.dependencies import get_note_service
+from ai_notes_api.api.v1.dependencies import get_current_user_id, get_note_service
 from ai_notes_api.schemas import (
     ErrorResponseSchema,
     NoteCreateSchema,
@@ -35,12 +35,14 @@ router = APIRouter(
 )
 async def create_note(
     data: NoteCreateSchema,
+    user_id: Annotated[int, Depends(get_current_user_id)],
     service: Annotated[NoteService, Depends(get_note_service)],
 ) -> NoteResponseSchema:
     """Create a new note.
 
     Args:
         data (NoteCreateSchema): Validated note creation data.
+        user_id (int): Current authenticated user identifier.
         service (NoteService): Note service dependency used to create the note.
 
     Returns:
@@ -48,7 +50,7 @@ async def create_note(
     """
     logger.info("Note creation requested")
 
-    note = await service.create_note(data)
+    note = await service.create_note(user_id, data)
 
     return NoteResponseSchema.model_validate(note)
 
@@ -65,12 +67,14 @@ async def get_notes(
         NoteListQuerySchema,
         Depends(),
     ],
+    user_id: Annotated[int, Depends(get_current_user_id)],
     service: Annotated[NoteService, Depends(get_note_service)],
 ) -> NoteListResponseSchema:
     """Return a paginated list of notes.
 
     Args:
         filters (NoteListQuerySchema): Filters and pagination parameters.
+        user_id (int): Current authenticated user identifier.
         service (NoteService): Note service dependency used to retrieve notes.
 
     Returns:
@@ -89,7 +93,7 @@ async def get_notes(
         filters.model_name,
     )
 
-    notes = await service.get_list(filters)
+    notes = await service.get_list(user_id, filters)
 
     return NoteListResponseSchema(
         items=[NoteResponseSchema.model_validate(note) for note in notes],
@@ -114,12 +118,14 @@ async def get_notes(
 )
 async def get_note(
     note_id: int,
+    user_id: Annotated[int, Depends(get_current_user_id)],
     service: Annotated[NoteService, Depends(get_note_service)],
 ) -> NoteResponseSchema:
     """Return a note by its identifier.
 
     Args:
         note_id (int): Unique note identifier.
+        user_id (int): Current authenticated user identifier.
         service (NoteService): Note service dependency used to retrieve the note.
 
     Returns:
@@ -128,9 +134,9 @@ async def get_note(
     Raises:
         NoteNotFoundError: If no note with the given identifier exists.
     """
-    logger.info(f"Note retrieval requested: note_id={note_id}")
+    logger.info("Note retrieval requested: note_id={}", note_id)
 
-    note = await service.get_note(note_id)
+    note = await service.get_note(user_id, note_id)
 
     return NoteResponseSchema.model_validate(note)
 
@@ -151,6 +157,7 @@ async def get_note(
 async def update_note(
     note_id: int,
     data: NoteUpdateSchema,
+    user_id: Annotated[int, Depends(get_current_user_id)],
     service: Annotated[NoteService, Depends(get_note_service)],
 ) -> NoteResponseSchema:
     """Update a note by its identifier.
@@ -158,6 +165,7 @@ async def update_note(
     Args:
         note_id (int): Unique note identifier to update.
         data (NoteUpdateSchema): Validated note update data.
+        user_id (int): Current authenticated user identifier.
         service (NoteService): Note service dependency used to update the note.
 
     Returns:
@@ -168,7 +176,7 @@ async def update_note(
     """
     logger.info("Note update requested: note_id={}", note_id)
 
-    note = await service.update_note(note_id, data)
+    note = await service.update_note(user_id, note_id, data)
 
     return NoteResponseSchema.model_validate(note)
 
@@ -188,12 +196,14 @@ async def update_note(
 )
 async def delete_note(
     note_id: int,
+    user_id: Annotated[int, Depends(get_current_user_id)],
     service: Annotated[NoteService, Depends(get_note_service)],
 ) -> StatusResponseSchema:
     """Delete a note by its identifier.
 
     Args:
         note_id (int): Unique note identifier to delete.
+        user_id (int): Current authenticated user identifier.
         service (NoteService): Note service dependency used to delete the note.
 
     Returns:
@@ -204,6 +214,6 @@ async def delete_note(
     """
     logger.info("Note deletion requested: note_id={}", note_id)
 
-    await service.delete_note(note_id)
+    await service.delete_note(user_id, note_id)
 
     return StatusResponseSchema(status="deleted")
