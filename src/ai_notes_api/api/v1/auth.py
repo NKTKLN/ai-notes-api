@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from loguru import logger
 
-from ai_notes_api.api.v1.dependencies import get_auth_service
+from ai_notes_api.api.v1.dependencies import get_auth_service, get_current_user_id
 from ai_notes_api.schemas import (
     LoginRequestSchema,
     TokenResponseSchema,
@@ -88,3 +88,35 @@ async def login_user(
         access_token=access_token,
         token_type="bearer",  # noqa: S106
     )
+
+
+@router.get(
+    "/me",
+    summary="Get current user",
+    description="Return the currently authenticated user.",
+    response_model=UserResponseSchema,
+    status_code=status.HTTP_200_OK,
+)
+async def get_current_user(
+    current_user_id: Annotated[int, Depends(get_current_user_id)],
+    service: Annotated[AuthService, Depends(get_auth_service)],
+) -> UserResponseSchema:
+    """Return the currently authenticated user.
+
+    Args:
+        current_user_id (int): Current authenticated user identifier.
+        service (AuthService): Authentication service dependency used to
+            retrieve the user.
+
+    Returns:
+        UserResponseSchema: Current authenticated user data.
+
+    Raises:
+        InvalidTokenError: If the access token is invalid.
+        UserNotFoundError: If no user with the authenticated identifier exists.
+    """
+    logger.info("Current user retrieval requested: user_id={}", current_user_id)
+
+    user = await service.get_user(current_user_id)
+
+    return UserResponseSchema.model_validate(user)
