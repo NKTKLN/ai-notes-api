@@ -18,7 +18,7 @@ from ai_notes_api.schemas import (
     NoteUpdateSchema,
     StatusResponseSchema,
 )
-from ai_notes_api.services.note import NoteService
+from ai_notes_api.services import NoteService
 
 router = APIRouter(
     prefix="/notes",
