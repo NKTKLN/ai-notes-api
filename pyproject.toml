@@ -58,7 +58,7 @@ exclude = [
 line-length = 88
 target-version = "py313"
 extend-include = ["*.ipynb"]
-exclude = [".git", "__pycache__", "build", "dist", ".venv", "tmp"]
+exclude = [".git", "__pycache__", "build", "dist", ".venv", "tmp", "alembic"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -96,7 +96,7 @@ disallow_any_unimported = true
 no_implicit_optional = true
 strict_optional = true
 disallow_untyped_calls = true
-exclude = [".git", "__pycache__", "build", "dist", ".venv", "tmp"]
+exclude = [".git", "__pycache__", "build", "dist", ".venv", "tmp", "alembic"]
 
 [tool.coverage.run]
 branch = true
