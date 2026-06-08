@@ -53,6 +53,27 @@ class UserRepository(BaseRepository):
 
         return user
 
+    async def get_by_email(self, user_email: str) -> User | None:
+        """Return a user by its email.
+
+        Args:
+            user_email (str): User Email.
+
+        Returns:
+            User | None: Matching user if found; otherwise, None.
+        """
+        stmt = select(User).where(User.email == user_email)
+
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            logger.debug("User not found: email={}", user_email)
+        else:
+            logger.debug("User found: email={}", user_email)
+
+        return user
+
     async def update(self, user: User) -> User:
         """Update an existing user in the database.
 
