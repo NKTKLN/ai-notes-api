@@ -65,7 +65,7 @@ class NoteService:
 
         return await self.repository.get_list(repository_filters)
 
-    async def get_note(self, note_id: int) -> Note | None:
+    async def get_note(self, note_id: int) -> Note:
         """Return a note by its identifier.
 
         Args:

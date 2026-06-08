@@ -52,15 +52,3 @@ class UserResponseSchema(BaseModel):
     username: str | None
     is_active: bool
     created_at: datetime
-
-
-class LoginRequestSchema(BaseModel):
-    """Schema for user login request data.
-
-    Attributes:
-        email (EmailStr): User email address.
-        password (str): Raw user password.
-    """
-
-    email: EmailStr
-    password: str
