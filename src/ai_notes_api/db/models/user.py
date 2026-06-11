@@ -4,13 +4,15 @@ This module defines the SQLAlchemy ORM model for application users.
 """
 
 from typing import TYPE_CHECKING
+from uuid import UUID, uuid4
 
-from sqlalchemy import String
+from sqlalchemy import String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_notes_api.db.models import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from ai_notes_api.db.models.chat_session import ChatSession
     from ai_notes_api.db.models.note import Note
 
 
@@ -18,19 +20,22 @@ class User(Base, TimestampMixin):
     """SQLAlchemy ORM model representing an application user.
 
     Attributes:
-        id (Mapped[int]): Unique user identifier.
+        id (Mapped[UUID]): Unique user identifier.
         email (Mapped[str]): Unique user email address.
         username (Mapped[str | None]): Optional username.
         hashed_password (Mapped[str]): Hashed user password.
         is_active (Mapped[bool]): Whether the user account is active.
         is_superuser (Mapped[bool]): Whether the user has superuser privileges.
         notes (Mapped[list[Note]]): Notes owned by the user.
+        chat_sessions (Mapped[list[ChatSession]]): Chat sessions owned by the user.
     """
 
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
+        Uuid,
         primary_key=True,
+        default=uuid4,
     )
 
     email: Mapped[str] = mapped_column(
@@ -58,6 +63,11 @@ class User(Base, TimestampMixin):
     )
 
     notes: Mapped[list["Note"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    chat_sessions: Mapped[list["ChatSession"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

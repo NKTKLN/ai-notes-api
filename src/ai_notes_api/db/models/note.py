@@ -6,9 +6,10 @@ identify how a note was created.
 
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
+from uuid import UUID, uuid4
 
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, Text, Uuid
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,14 +39,13 @@ class Note(Base, TimestampMixin, SoftDeleteMixin):
     """SQLAlchemy ORM model representing a note.
 
     Attributes:
-        id (Mapped[int]): Unique note identifier.
+        id (Mapped[UUID]): Unique note identifier.
         user_id (Mapped[int]): Identifier of the user who owns the note.
         user (Mapped[User]): User who owns the note.
         title (Mapped[str]): Note title.
         content (Mapped[str]): Main note content.
         tags (Mapped[list[str]]): List of tags associated with the note.
-        source (Mapped[ModelSource]): Source that indicates how the note was
-            created.
+        source (Mapped[ModelSource]): Source that indicates how the note was created.
         model_name (Mapped[str | None]): Optional name of the model that
             generated the note.
         model_metadata (Mapped[dict[str, Any]]): Additional metadata related to
@@ -54,8 +54,10 @@ class Note(Base, TimestampMixin, SoftDeleteMixin):
 
     __tablename__ = "notes"
 
-    id: Mapped[int] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
+        Uuid,
         primary_key=True,
+        default=uuid4,
     )
 
     user_id: Mapped[int] = mapped_column(
@@ -76,7 +78,10 @@ class Note(Base, TimestampMixin, SoftDeleteMixin):
         nullable=False,
     )
 
-    content: Mapped[str]
+    content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
 
     tags: Mapped[list[str]] = mapped_column(
         ARRAY(String),
