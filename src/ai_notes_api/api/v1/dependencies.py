@@ -111,15 +111,15 @@ async def get_current_user(
 
 def get_chat_session_service(
     session: Annotated[AsyncSession, Depends(get_db)],
-) -> NoteService:
-    """Provide a note service instance.
+) -> ChatSessionService:
+    """Provide a chat session service instance.
 
     Args:
         session (AsyncSession): Asynchronous database session provided by FastAPI
             dependency injection.
 
     Returns:
-        NoteService: Configured note service instance.
+        ChatSessionService: Configured chat session service instance.
     """
     repository = ChatSessionRepository(session)
 
