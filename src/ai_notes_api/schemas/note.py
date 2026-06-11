@@ -29,8 +29,7 @@ class NoteResponseSchema(BaseModel):
         content (str): Main note content.
         tags (list[str]): List of note tags.
         source (ModelSource): Source that indicates how the note was created.
-        model_name (str | None): Optional name of the model associated with the
-            note.
+        model_name (str | None): Optional name of the model associated with the note.
         model_metadata (dict[str, Any] | None): Additional metadata associated
             with the note.
         created_at (datetime): Date and time when the note was created.
@@ -76,10 +75,8 @@ class NoteCreateSchema(BaseModel):
         content (str): Main note content.
         tags (list[Tag]): List of note tags.
         source (ModelSource): Source that indicates how the note was created.
-        model_name (str | None): Optional name of the model associated with the
-            note.
-        model_metadata (dict[str, Any]): Additional metadata associated with the
-            note.
+        model_name (str | None): Optional name of the model associated with the note.
+        model_metadata (dict[str, Any]): Additional metadata associated with the note.
     """
 
     title: str = Field(
@@ -117,10 +114,8 @@ class NoteListQuerySchema(BaseModel):
     Attributes:
         limit (int): Maximum number of notes to return.
         offset (int): Number of notes to skip before returning results.
-        search (str | None): Optional text used to search notes by title or
-            content.
-        source (ModelSource | None): Optional note source used to filter
-            results.
+        search (str | None): Optional text used to search notes by title or content.
+        source (ModelSource | None): Optional note source used to filter results.
         tag (str | None): Optional tag used to filter results.
         model_name (str | None): Optional model name used to filter results.
     """
