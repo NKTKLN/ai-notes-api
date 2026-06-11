@@ -4,9 +4,8 @@ This module defines the SQLAlchemy ORM model for application users.
 """
 
 from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
 
-from sqlalchemy import String, Uuid
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_notes_api.db.models import Base, TimestampMixin
@@ -20,7 +19,7 @@ class User(Base, TimestampMixin):
     """SQLAlchemy ORM model representing an application user.
 
     Attributes:
-        id (Mapped[UUID]): Unique user identifier.
+        id (Mapped[int]): Unique user identifier.
         email (Mapped[str]): Unique user email address.
         username (Mapped[str | None]): Optional username.
         hashed_password (Mapped[str]): Hashed user password.
@@ -32,10 +31,8 @@ class User(Base, TimestampMixin):
 
     __tablename__ = "users"
 
-    id: Mapped[UUID] = mapped_column(
-        Uuid,
+    id: Mapped[int] = mapped_column(
         primary_key=True,
-        default=uuid4,
     )
 
     email: Mapped[str] = mapped_column(

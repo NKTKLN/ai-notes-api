@@ -4,9 +4,8 @@ This module defines the SQLAlchemy ORM model for chat sessions.
 """
 
 from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
 
-from sqlalchemy import ForeignKey, String, Uuid
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_notes_api.db.models import Base, SoftDeleteMixin, TimestampMixin
@@ -20,7 +19,7 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
     """SQLAlchemy ORM model representing a chat session.
 
     Attributes:
-        id (Mapped[UUID]): Unique chat session identifier.
+        id (Mapped[int]): Unique chat session identifier.
         user_id (Mapped[int]): Identifier of the user who owns the chat session.
         user (Mapped[User]): User who owns the chat session.
         title (Mapped[str]): Chat session title.
@@ -29,10 +28,8 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
 
     __tablename__ = "chat_sessions"
 
-    id: Mapped[UUID] = mapped_column(
-        Uuid,
+    id: Mapped[int] = mapped_column(
         primary_key=True,
-        default=uuid4,
     )
 
     user_id: Mapped[int] = mapped_column(
