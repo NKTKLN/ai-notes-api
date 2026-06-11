@@ -8,9 +8,11 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ai_notes_api.db.models import Base, TimestampMixin
+from ai_notes_api.db.models.base import Base
+from ai_notes_api.db.models.datetime import TimestampMixin
 
 if TYPE_CHECKING:
+    from ai_notes_api.db.models.chat_session import ChatSession
     from ai_notes_api.db.models.note import Note
 
 
@@ -25,6 +27,7 @@ class User(Base, TimestampMixin):
         is_active (Mapped[bool]): Whether the user account is active.
         is_superuser (Mapped[bool]): Whether the user has superuser privileges.
         notes (Mapped[list[Note]]): Notes owned by the user.
+        chat_sessions (Mapped[list[ChatSession]]): Chat sessions owned by the user.
     """
 
     __tablename__ = "users"
@@ -58,6 +61,11 @@ class User(Base, TimestampMixin):
     )
 
     notes: Mapped[list["Note"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    chat_sessions: Mapped[list["ChatSession"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

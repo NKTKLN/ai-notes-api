@@ -1,0 +1,152 @@
+"""Chat session repository module.
+
+This module provides a repository for creating, reading, updating, and
+soft-deleting chat sessions in the database.
+"""
+
+from datetime import UTC, datetime
+
+from loguru import logger
+from sqlalchemy import select
+
+from ai_notes_api.db.models import ChatSession
+from ai_notes_api.repositories.base import BaseRepository
+from ai_notes_api.repositories.filters import ChatSessionListFilters
+
+
+class ChatSessionRepository(BaseRepository):
+    """Repository for chat session database operations."""
+
+    async def create(self, chat_session: ChatSession) -> ChatSession:
+        """Create a chat session in the database.
+
+        Args:
+            chat_session (ChatSession): Chat session instance to persist.
+
+        Returns:
+            ChatSession: Persisted chat session with refreshed
+            database-generated fields.
+        """
+        self.session.add(chat_session)
+
+        await self.session.flush()
+        await self.session.refresh(chat_session)
+
+        logger.info("Chat session created: id={}", chat_session.id)
+
+        return chat_session
+
+    async def get_by_id(
+        self,
+        user_id: int,
+        session_id: int,
+    ) -> ChatSession | None:
+        """Return a chat session by its identifier.
+
+        Args:
+            user_id (int): Unique identifier of the user who owns the chat session.
+            session_id (int): Unique chat session identifier.
+
+        Returns:
+            ChatSession | None: Matching chat session if found and not
+            soft-deleted; otherwise, None.
+        """
+        stmt = (
+            select(ChatSession)
+            .where(ChatSession.user_id == user_id)
+            .where(ChatSession.id == session_id)
+            .where(ChatSession.deleted_at.is_(None))
+        )
+
+        result = await self.session.execute(stmt)
+        chat_session = result.scalar_one_or_none()
+
+        if chat_session is None:
+            logger.debug("Chat session not found: id={}", session_id)
+        else:
+            logger.debug("Chat session found: id={}", session_id)
+
+        return chat_session
+
+    async def get_list(
+        self,
+        user_id: int,
+        filters: ChatSessionListFilters,
+    ) -> list[ChatSession]:
+        """Return a paginated list of chat sessions.
+
+        Args:
+            user_id (int): Unique identifier of the user whose chat sessions
+                are requested.
+            filters (ChatSessionListFilters): Filters used to narrow the result set.
+
+        Returns:
+            list[ChatSession]: List of matching non-deleted chat sessions
+            ordered by creation date in descending order.
+        """
+        stmt = (
+            select(ChatSession)
+            .where(ChatSession.user_id == user_id)
+            .where(ChatSession.deleted_at.is_(None))
+        )
+
+        if filters.search is not None:
+            search = filters.search.strip()
+
+            if search:
+                search_value = f"%{search}%"
+                stmt = stmt.where(ChatSession.title.ilike(search_value))
+
+        stmt = (
+            stmt.order_by(ChatSession.created_at.desc())
+            .limit(filters.limit)
+            .offset(filters.offset)
+        )
+
+        result = await self.session.execute(stmt)
+        chat_sessions = list(result.scalars().all())
+
+        logger.debug(
+            (
+                "Chat sessions list fetched: count={}, user_id={}, limit={}, "
+                "offset={}, search={}"
+            ),
+            len(chat_sessions),
+            user_id,
+            filters.limit,
+            filters.offset,
+            filters.search,
+        )
+
+        return chat_sessions
+
+    async def update(self, chat_session: ChatSession) -> ChatSession:
+        """Update an existing chat session in the database.
+
+        Args:
+            chat_session (ChatSession): Chat session instance with updated field values.
+
+        Returns:
+            ChatSession: Updated and refreshed chat session instance.
+        """
+        await self.session.flush()
+        await self.session.refresh(chat_session)
+
+        logger.info("Chat session updated: id={}", chat_session.id)
+
+        return chat_session
+
+    async def soft_delete(self, chat_session: ChatSession) -> None:
+        """Soft-delete a chat session.
+
+        Sets the chat session deletion timestamp instead of removing the row
+        from the database.
+
+        Args:
+            chat_session (ChatSession): Chat session instance to soft-delete.
+        """
+        chat_session.deleted_at = datetime.now(UTC)
+
+        await self.session.flush()
+
+        logger.info("Chat session soft-deleted: id={}", chat_session.id)

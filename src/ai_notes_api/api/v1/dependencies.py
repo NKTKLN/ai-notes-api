@@ -14,8 +14,12 @@ from ai_notes_api.core import decode_access_token
 from ai_notes_api.db.models import User
 from ai_notes_api.db.session import get_db
 from ai_notes_api.exceptions import InvalidTokenError
-from ai_notes_api.repositories import NoteRepository, UserRepository
-from ai_notes_api.services import AuthService, NoteService
+from ai_notes_api.repositories import (
+    ChatSessionRepository,
+    NoteRepository,
+    UserRepository,
+)
+from ai_notes_api.services import AuthService, ChatSessionService, NoteService
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/v1/auth/login",
@@ -103,3 +107,20 @@ async def get_current_user(
         UserNotFoundError: If no user with the authenticated identifier exists.
     """
     return await service.get_user(user_id)
+
+
+def get_chat_session_service(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> ChatSessionService:
+    """Provide a chat session service instance.
+
+    Args:
+        session (AsyncSession): Asynchronous database session provided by FastAPI
+            dependency injection.
+
+    Returns:
+        ChatSessionService: Configured chat session service instance.
+    """
+    repository = ChatSessionRepository(session)
+
+    return ChatSessionService(repository)

@@ -8,11 +8,12 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ai_notes_api.db.models import Base, SoftDeleteMixin, TimestampMixin
+from ai_notes_api.db.models.base import Base
+from ai_notes_api.db.models.datetime import SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from ai_notes_api.db.models.user import User
@@ -44,8 +45,7 @@ class Note(Base, TimestampMixin, SoftDeleteMixin):
         title (Mapped[str]): Note title.
         content (Mapped[str]): Main note content.
         tags (Mapped[list[str]]): List of tags associated with the note.
-        source (Mapped[ModelSource]): Source that indicates how the note was
-            created.
+        source (Mapped[ModelSource]): Source that indicates how the note was created.
         model_name (Mapped[str | None]): Optional name of the model that
             generated the note.
         model_metadata (Mapped[dict[str, Any]]): Additional metadata related to
@@ -76,7 +76,10 @@ class Note(Base, TimestampMixin, SoftDeleteMixin):
         nullable=False,
     )
 
-    content: Mapped[str]
+    content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
 
     tags: Mapped[list[str]] = mapped_column(
         ARRAY(String),
