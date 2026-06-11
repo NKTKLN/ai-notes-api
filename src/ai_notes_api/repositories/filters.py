@@ -28,3 +28,18 @@ class NoteListFilters:
     source: ModelSource | None = None
     tag: str | None = None
     model_name: str | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class ChatSessionListFilters:
+    """Filters used to fetch a list of chat sessions.
+
+    Attributes:
+        limit (int): Maximum number of chat sessions to return.
+        offset (int): Number of chat sessions to skip before returning results.
+        search (str | None): Optional text used to search chat sessions by title.
+    """
+
+    limit: int = 20
+    offset: int = 0
+    search: str | None = None

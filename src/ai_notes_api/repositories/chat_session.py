@@ -10,7 +10,7 @@ from loguru import logger
 from sqlalchemy import select
 
 from ai_notes_api.db.models import ChatSession
-from ai_notes_api.repositories import BaseRepository
+from ai_notes_api.repositories import BaseRepository, ChatSessionListFilters
 
 
 class ChatSessionRepository(BaseRepository):
@@ -66,6 +66,58 @@ class ChatSessionRepository(BaseRepository):
             logger.debug("Chat session found: id={}", session_id)
 
         return chat_session
+
+    async def get_list(
+        self,
+        user_id: int,
+        filters: ChatSessionListFilters,
+    ) -> list[ChatSession]:
+        """Return a paginated list of chat sessions.
+
+        Args:
+            user_id (int): Unique identifier of the user whose chat sessions
+                are requested.
+            filters (ChatSessionListFilters): Filters used to narrow the result set.
+
+        Returns:
+            list[ChatSession]: List of matching non-deleted chat sessions
+            ordered by creation date in descending order.
+        """
+        stmt = (
+            select(ChatSession)
+            .where(ChatSession.user_id == user_id)
+            .where(ChatSession.deleted_at.is_(None))
+        )
+
+        if filters.search is not None:
+            search = filters.search.strip()
+
+            if search:
+                search_value = f"%{search}%"
+                stmt = stmt.where(ChatSession.title.ilike(search_value))
+
+        stmt = (
+            stmt.order_by(ChatSession.created_at.desc())
+            .limit(filters.limit)
+            .offset(filters.offset)
+        )
+
+        result = await self.session.execute(stmt)
+        chat_sessions = list(result.scalars().all())
+
+        logger.debug(
+            (
+                "Chat sessions list fetched: count={}, user_id={}, limit={}, "
+                "offset={}, search={}"
+            ),
+            len(chat_sessions),
+            user_id,
+            filters.limit,
+            filters.offset,
+            filters.search,
+        )
+
+        return chat_sessions
 
     async def update(self, chat_session: ChatSession) -> ChatSession:
         """Update an existing chat session in the database.
