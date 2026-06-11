@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ai_notes_api.db.models import Base, TimestampMixin
+from ai_notes_api.db.models.base import Base
+from ai_notes_api.db.models.datetime import TimestampMixin
 
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_session import ChatSession

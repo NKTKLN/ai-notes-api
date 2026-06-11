@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ai_notes_api.db.models import Base, SoftDeleteMixin, TimestampMixin
+from ai_notes_api.db.models.base import Base
+from ai_notes_api.db.models.datetime import SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from ai_notes_api.db.models.message import Message

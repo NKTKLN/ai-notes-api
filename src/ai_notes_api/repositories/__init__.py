@@ -11,8 +11,8 @@ from .user import UserRepository
 
 __all__ = [
     "BaseRepository",
-    "ChatSessionRepository",
     "ChatSessionListFilters",
+    "ChatSessionRepository",
     "NoteListFilters",
     "NoteRepository",
     "UserRepository",

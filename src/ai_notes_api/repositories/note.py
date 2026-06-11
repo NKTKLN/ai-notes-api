@@ -10,7 +10,8 @@ from loguru import logger
 from sqlalchemy import or_, select
 
 from ai_notes_api.db.models import Note
-from ai_notes_api.repositories import BaseRepository, NoteListFilters
+from ai_notes_api.repositories.base import BaseRepository
+from ai_notes_api.repositories.filters import NoteListFilters
 
 
 class NoteRepository(BaseRepository):

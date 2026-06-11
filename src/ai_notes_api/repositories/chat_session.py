@@ -10,7 +10,8 @@ from loguru import logger
 from sqlalchemy import select
 
 from ai_notes_api.db.models import ChatSession
-from ai_notes_api.repositories import BaseRepository, ChatSessionListFilters
+from ai_notes_api.repositories.base import BaseRepository
+from ai_notes_api.repositories.filters import ChatSessionListFilters
 
 
 class ChatSessionRepository(BaseRepository):
