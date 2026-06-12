@@ -5,6 +5,7 @@ responses.
 """
 
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -36,7 +37,7 @@ class UserResponseSchema(BaseModel):
     """Schema for returning user data.
 
     Attributes:
-        id (int): Unique user identifier.
+        id (UUID): Unique user identifier.
         email (EmailStr): User email address.
         username (str | None): Optional username.
         is_active (bool): Whether the user account is active.
@@ -47,7 +48,7 @@ class UserResponseSchema(BaseModel):
         from_attributes=True,
     )
 
-    id: int
+    id: UUID
     email: EmailStr
     username: str | None
     is_active: bool

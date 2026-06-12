@@ -5,6 +5,7 @@ responses.
 """
 
 from datetime import datetime
+from uuid import UUID
 
 from fastapi import Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -40,7 +41,7 @@ class ChatSessionResponseSchema(BaseModel):
     """Schema for returning chat session data.
 
     Attributes:
-        id (int): Unique chat session identifier.
+        id (UUID): Unique chat session identifier.
         title (str): Chat session title.
         created_at (datetime): Date and time when the chat session was created.
         updated_at (datetime): Date and time when the chat session was last updated.
@@ -48,7 +49,7 @@ class ChatSessionResponseSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: UUID
     title: str
     created_at: datetime
     updated_at: datetime
