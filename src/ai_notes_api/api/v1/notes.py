@@ -4,6 +4,7 @@ This module defines API endpoints for creating and managing notes.
 """
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 from loguru import logger
@@ -118,14 +119,14 @@ async def get_notes(
     },
 )
 async def get_note(
-    note_id: int,
+    note_id: UUID,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[NoteService, Depends(get_note_service)],
 ) -> NoteResponseSchema:
     """Return a note by its identifier.
 
     Args:
-        note_id (int): Unique note identifier.
+        note_id (UUID): Unique note identifier.
         user (User): Current authenticated user.
         service (NoteService): Note service dependency used to retrieve the note.
 
@@ -156,7 +157,7 @@ async def get_note(
     },
 )
 async def update_note(
-    note_id: int,
+    note_id: UUID,
     data: NoteUpdateSchema,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[NoteService, Depends(get_note_service)],
@@ -164,7 +165,7 @@ async def update_note(
     """Update a note by its identifier.
 
     Args:
-        note_id (int): Unique note identifier to update.
+        note_id (UUID): Unique note identifier to update.
         data (NoteUpdateSchema): Validated note update data.
         user (User): Current authenticated user.
         service (NoteService): Note service dependency used to update the note.
@@ -196,14 +197,14 @@ async def update_note(
     },
 )
 async def delete_note(
-    note_id: int,
+    note_id: UUID,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[NoteService, Depends(get_note_service)],
 ) -> StatusResponseSchema:
     """Delete a note by its identifier.
 
     Args:
-        note_id (int): Unique note identifier to delete.
+        note_id (UUID): Unique note identifier to delete.
         user (User): Current authenticated user.
         service (NoteService): Note service dependency used to delete the note.
 
