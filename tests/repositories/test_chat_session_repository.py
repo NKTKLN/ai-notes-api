@@ -1,6 +1,7 @@
 """Tests for chat session repository."""
 
 from datetime import datetime
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -55,13 +56,13 @@ async def other_user(async_session: AsyncSession) -> User:
 
 def create_chat_session(
     *,
-    user_id: int,
+    user_id: UUID,
     title: str = "Test chat session",
 ) -> ChatSession:
     """Create a chat session instance for repository tests.
 
     Args:
-        user_id (int): Identifier of the user who owns the chat session.
+        user_id (UUID): Identifier of the user who owns the chat session.
         title (str): Chat session title.
 
     Returns:
@@ -129,7 +130,7 @@ async def test_get_chat_session_not_found(
     """Test that chat session retrieval returns None when not found."""
     repository = ChatSessionRepository(session=async_session)
 
-    chat_session = await repository.get_by_id(test_user.id, 999)
+    chat_session = await repository.get_by_id(test_user.id, uuid4())
 
     assert chat_session is None
 
