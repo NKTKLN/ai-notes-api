@@ -5,6 +5,7 @@ This module defines Pydantic schemas used for note request and response validati
 
 from datetime import datetime
 from typing import Annotated, Any
+from uuid import UUID
 
 from fastapi import Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -24,7 +25,7 @@ class NoteResponseSchema(BaseModel):
     """Schema for returning a note.
 
     Attributes:
-        id (int): Unique note identifier.
+        id (UUID): Unique note identifier.
         title (str): Note title.
         content (str): Main note content.
         tags (list[str]): List of note tags.
@@ -40,7 +41,7 @@ class NoteResponseSchema(BaseModel):
         from_attributes=True,
     )
 
-    id: int
+    id: UUID
     title: str
     content: str
     tags: list[str]

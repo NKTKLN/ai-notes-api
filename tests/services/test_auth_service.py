@@ -1,6 +1,7 @@
 """Tests for authentication service."""
 
 from typing import cast
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -15,18 +16,20 @@ from ai_notes_api.repositories import UserRepository
 from ai_notes_api.schemas import UserCreateSchema
 from ai_notes_api.services import AuthService
 
+TEST_USER_ID = UUID("11111111-1111-1111-1111-111111111111")
+
 
 class FakeUserRepository:
     """Fake user repository used for testing auth service behavior.
 
     Attributes:
-        users (dict[int, User]): In-memory storage of users by identifier.
+        users (dict[UUID, User]): In-memory storage of users by identifier.
         created_user (User | None): Last user created through the fake repository.
     """
 
     def __init__(self) -> None:
         """Initialize the fake user repository."""
-        self.users: dict[int, User] = {}
+        self.users: dict[UUID, User] = {}
         self.created_user: User | None = None
 
     async def create(self, user: User) -> User:
@@ -38,7 +41,7 @@ class FakeUserRepository:
         Returns:
             User: Created user with assigned identifier.
         """
-        user.id = 1
+        user.id = TEST_USER_ID
 
         if user.is_active is None:
             user.is_active = True  # type: ignore[unreachable]
@@ -50,11 +53,11 @@ class FakeUserRepository:
         self.users[user.id] = user
         return user
 
-    async def get_by_id(self, user_id: int) -> User | None:
+    async def get_by_id(self, user_id: UUID) -> User | None:
         """Return a user by its identifier.
 
         Args:
-            user_id (int): Unique user identifier.
+            user_id (UUID): Unique user identifier.
 
         Returns:
             User | None: Matching user if found; otherwise, None.
@@ -111,7 +114,7 @@ async def test_register_user_success() -> None:
 
     user = await service.register_user(data)
 
-    assert user.id == 1
+    assert user.id == TEST_USER_ID
     assert user.email == "user@example.com"
     assert user.username == "testuser"
     assert user.hashed_password != "password"  # noqa: S105
@@ -124,8 +127,8 @@ async def test_register_user_already_exists() -> None:
     repository = FakeUserRepository()
     service = AuthService(repository=cast(UserRepository, repository))
 
-    repository.users[1] = User(
-        id=1,
+    repository.users[TEST_USER_ID] = User(
+        id=TEST_USER_ID,
         email="user@example.com",
         username="existinguser",
         hashed_password="hashed-password",  # noqa: S106
@@ -212,16 +215,16 @@ async def test_get_user_success() -> None:
     repository = FakeUserRepository()
     service = AuthService(repository=cast(UserRepository, repository))
 
-    repository.users[1] = User(
-        id=1,
+    repository.users[TEST_USER_ID] = User(
+        id=TEST_USER_ID,
         email="user@example.com",
         username="testuser",
         hashed_password="hashed-password",  # noqa: S106
     )
 
-    user = await service.get_user(1)
+    user = await service.get_user(TEST_USER_ID)
 
-    assert user.id == 1
+    assert user.id == TEST_USER_ID
     assert user.email == "user@example.com"
     assert user.username == "testuser"
 
@@ -233,7 +236,7 @@ async def test_get_user_not_found() -> None:
     service = AuthService(repository=cast(UserRepository, repository))
 
     with pytest.raises(UserNotFoundError):
-        await service.get_user(999)
+        await service.get_user(uuid4())
 
 
 def test_create_token_for_user_success() -> None:
@@ -242,7 +245,7 @@ def test_create_token_for_user_success() -> None:
     service = AuthService(repository=cast(UserRepository, repository))
 
     user = User(
-        id=1,
+        id=TEST_USER_ID,
         email="user@example.com",
         username="testuser",
         hashed_password="hashed-password",  # noqa: S106

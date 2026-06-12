@@ -4,6 +4,7 @@ This module defines API endpoints for creating and managing chat sessions.
 """
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 from loguru import logger
@@ -120,14 +121,14 @@ async def get_chat_sessions(
     },
 )
 async def get_chat_session(
-    session_id: int,
+    session_id: UUID,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[ChatSessionService, Depends(get_chat_session_service)],
 ) -> ChatSessionResponseSchema:
     """Return a chat session by its identifier.
 
     Args:
-        session_id (int): Unique chat session identifier.
+        session_id (UUID): Unique chat session identifier.
         user (User): Current authenticated user.
         service (ChatSessionService): Chat session service dependency used to
             retrieve the chat session.
@@ -159,7 +160,7 @@ async def get_chat_session(
     },
 )
 async def update_chat_session(
-    session_id: int,
+    session_id: UUID,
     data: ChatSessionUpdateSchema,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[ChatSessionService, Depends(get_chat_session_service)],
@@ -167,7 +168,7 @@ async def update_chat_session(
     """Update a chat session by its identifier.
 
     Args:
-        session_id (int): Unique chat session identifier to update.
+        session_id (UUID): Unique chat session identifier to update.
         data (ChatSessionUpdateSchema): Validated chat session update data.
         user (User): Current authenticated user.
         service (ChatSessionService): Chat session service dependency used to
@@ -200,14 +201,14 @@ async def update_chat_session(
     },
 )
 async def delete_chat_session(
-    session_id: int,
+    session_id: UUID,
     user: Annotated[User, Depends(get_current_user)],
     service: Annotated[ChatSessionService, Depends(get_chat_session_service)],
 ) -> StatusResponseSchema:
     """Delete a chat session by its identifier.
 
     Args:
-        session_id (int): Unique chat session identifier to delete.
+        session_id (UUID): Unique chat session identifier to delete.
         user (User): Current authenticated user.
         service (ChatSessionService): Chat session service dependency used to
             delete the chat session.

@@ -5,6 +5,7 @@ and resolving authenticated users.
 """
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -28,7 +29,7 @@ oauth2_scheme = OAuth2PasswordBearer(
 
 def get_current_user_id(
     token: Annotated[str, Depends(oauth2_scheme)],
-) -> int:
+) -> UUID:
     """Return the current authenticated user identifier.
 
     Args:
@@ -36,7 +37,7 @@ def get_current_user_id(
             dependency injection.
 
     Returns:
-        int: Current authenticated user identifier.
+        UUID: Current authenticated user identifier.
 
     Raises:
         InvalidTokenError: If the token payload does not contain a valid user
@@ -49,8 +50,8 @@ def get_current_user_id(
         raise InvalidTokenError()
 
     try:
-        return int(user_id)
-    except ValueError as exc:
+        return UUID(user_id)
+    except (ValueError, TypeError) as exc:
         raise InvalidTokenError() from exc
 
 
@@ -89,13 +90,13 @@ def get_auth_service(
 
 
 async def get_current_user(
-    user_id: Annotated[int, Depends(get_current_user_id)],
+    user_id: Annotated[UUID, Depends(get_current_user_id)],
     service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> User:
     """Return the current authenticated user.
 
     Args:
-        user_id (int): Current authenticated user identifier.
+        user_id (UUID): Current authenticated user identifier.
         service (AuthService): Authentication service dependency used to
             retrieve the user.
 

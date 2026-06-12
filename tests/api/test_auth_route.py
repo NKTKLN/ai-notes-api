@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
+from uuid import UUID
 
 import pytest
 from fastapi import FastAPI
@@ -12,10 +13,12 @@ from ai_notes_api.api.v1.dependencies import get_auth_service, get_current_user
 from ai_notes_api.db.models import User
 from ai_notes_api.services import AuthService
 
+TEST_USER_ID = UUID("11111111-1111-1111-1111-111111111111")
+
 
 def create_test_user(  # noqa: PLR0913
     *,
-    user_id: int = 1,
+    user_id: UUID = TEST_USER_ID,
     email: str = "test-user@example.com",
     username: str | None = "test_user",
     hashed_password: str = "test-password-hash",  # noqa: S107
@@ -25,7 +28,7 @@ def create_test_user(  # noqa: PLR0913
     """Create test user for router tests.
 
     Args:
-        user_id (int): Unique user identifier.
+        user_id (UUID): Unique user identifier.
         email (str): User email.
         username (str | None): Optional username.
         hashed_password (str): Hashed user password.
@@ -102,7 +105,7 @@ def test_register_user_success(
 ) -> None:
     """Test successful user registration."""
     auth_service_mock.register_user.return_value = create_test_user(
-        user_id=1,
+        user_id=TEST_USER_ID,
         email="user@example.com",
         username="testuser",
     )
@@ -120,7 +123,7 @@ def test_register_user_success(
 
     data = response.json()
 
-    assert data["id"] == 1
+    assert data["id"] == str(TEST_USER_ID)
     assert data["email"] == "user@example.com"
     assert data["username"] == "testuser"
     assert data["is_active"] is True
@@ -142,7 +145,7 @@ def test_register_user_without_username_success(
 ) -> None:
     """Test successful user registration without username."""
     auth_service_mock.register_user.return_value = create_test_user(
-        user_id=1,
+        user_id=TEST_USER_ID,
         email="user@example.com",
         username=None,
     )
@@ -160,7 +163,7 @@ def test_register_user_without_username_success(
 
     data = response.json()
 
-    assert data["id"] == 1
+    assert data["id"] == str(TEST_USER_ID)
     assert data["email"] == "user@example.com"
     assert data["username"] is None
     assert data["is_active"] is True
@@ -198,7 +201,7 @@ def test_login_user_success(
 ) -> None:
     """Test successful user login."""
     user = create_test_user(
-        user_id=1,
+        user_id=TEST_USER_ID,
         email="user@example.com",
         username="testuser",
     )
@@ -233,7 +236,7 @@ def test_login_user_uses_oauth_username_as_email(
 ) -> None:
     """Test that login passes OAuth username field as email to service."""
     user = create_test_user(
-        user_id=1,
+        user_id=TEST_USER_ID,
         email="user@example.com",
         username="testuser",
     )
@@ -305,7 +308,7 @@ def test_get_current_user_profile_success(
 
     data = response.json()
 
-    assert data["id"] == current_user.id
+    assert data["id"] == str(current_user.id)
     assert data["email"] == current_user.email
     assert data["username"] == current_user.username
     assert data["is_active"] is True
@@ -318,7 +321,7 @@ def test_get_current_user_profile_with_nullable_username_success(
 ) -> None:
     """Test successful current user profile retrieval without username."""
     current_user = create_test_user(
-        user_id=1,
+        user_id=TEST_USER_ID,
         email="user@example.com",
         username=None,
     )
@@ -337,7 +340,7 @@ def test_get_current_user_profile_with_nullable_username_success(
 
     data = response.json()
 
-    assert data["id"] == 1
+    assert data["id"] == str(TEST_USER_ID)
     assert data["email"] == "user@example.com"
     assert data["username"] is None
     assert data["is_active"] is True

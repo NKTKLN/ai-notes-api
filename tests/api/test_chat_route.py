@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
+from uuid import UUID
 
 import pytest
 from fastapi import FastAPI
@@ -15,6 +16,10 @@ from ai_notes_api.api.v1.dependencies import (
 from ai_notes_api.db.models import User
 from ai_notes_api.schemas import ChatSessionResponseSchema
 
+TEST_USER_ID = UUID("11111111-1111-1111-1111-111111111111")
+TEST_SESSION_ID = UUID("22222222-2222-2222-2222-222222222222")
+TEST_SESSION_ID_2 = UUID("33333333-3333-3333-3333-333333333333")
+
 
 def create_test_user() -> User:
     """Create current user for router tests.
@@ -23,7 +28,7 @@ def create_test_user() -> User:
         User: Test user model instance.
     """
     return User(
-        id=1,
+        id=TEST_USER_ID,
         email="test-user@example.com",
         username="test_user",
         hashed_password="test-password-hash",  # noqa: S106
@@ -34,13 +39,13 @@ def create_test_user() -> User:
 
 def create_chat_session_response(
     *,
-    session_id: int = 1,
+    session_id: UUID = TEST_SESSION_ID,
     title: str = "Test chat session",
 ) -> ChatSessionResponseSchema:
     """Create chat session response schema for router tests.
 
     Args:
-        session_id (int): Unique chat session identifier.
+        session_id (UUID): Unique chat session identifier.
         title (str): Chat session title.
 
     Returns:
@@ -108,7 +113,7 @@ def test_create_chat_session_success(
     """Test successful chat session creation."""
     chat_session_service_mock.create_chat_session.return_value = (
         create_chat_session_response(
-            session_id=1,
+            session_id=TEST_SESSION_ID,
             title="Test session",
         )
     )
@@ -124,14 +129,14 @@ def test_create_chat_session_success(
 
     data = response.json()
 
-    assert data["id"] == 1
+    assert data["id"] == str(TEST_SESSION_ID)
     assert data["title"] == "Test session"
 
     chat_session_service_mock.create_chat_session.assert_awaited_once()
 
     user_id, create_data = chat_session_service_mock.create_chat_session.await_args.args
 
-    assert user_id == 1
+    assert user_id == TEST_USER_ID
     assert create_data.title == "Test session"
 
 
@@ -142,11 +147,11 @@ def test_get_chat_sessions_success(
     """Test successful chat sessions list retrieval."""
     chat_session_service_mock.get_list.return_value = [
         create_chat_session_response(
-            session_id=2,
+            session_id=TEST_SESSION_ID_2,
             title="Second session",
         ),
         create_chat_session_response(
-            session_id=1,
+            session_id=TEST_SESSION_ID,
             title="First session",
         ),
     ]
@@ -162,17 +167,17 @@ def test_get_chat_sessions_success(
     assert data["total"] == 2
     assert len(data["items"]) == 2
 
-    assert data["items"][0]["id"] == 2
+    assert data["items"][0]["id"] == str(TEST_SESSION_ID_2)
     assert data["items"][0]["title"] == "Second session"
 
-    assert data["items"][1]["id"] == 1
+    assert data["items"][1]["id"] == str(TEST_SESSION_ID)
     assert data["items"][1]["title"] == "First session"
 
     chat_session_service_mock.get_list.assert_awaited_once()
 
     user_id, filters = chat_session_service_mock.get_list.await_args.args
 
-    assert user_id == 1
+    assert user_id == TEST_USER_ID
     assert filters.limit == 10
     assert filters.offset == 0
 
@@ -199,7 +204,7 @@ def test_get_chat_sessions_empty_success(
 
     user_id, filters = chat_session_service_mock.get_list.await_args.args
 
-    assert user_id == 1
+    assert user_id == TEST_USER_ID
     assert filters.limit == 10
     assert filters.offset == 0
 
@@ -211,7 +216,7 @@ def test_get_chat_sessions_with_filters_success(
     """Test successful chat sessions list retrieval with filters."""
     chat_session_service_mock.get_list.return_value = [
         create_chat_session_response(
-            session_id=1,
+            session_id=TEST_SESSION_ID,
             title="Matching session",
         )
     ]
@@ -234,14 +239,14 @@ def test_get_chat_sessions_with_filters_success(
 
     item = data["items"][0]
 
-    assert item["id"] == 1
+    assert item["id"] == str(TEST_SESSION_ID)
     assert item["title"] == "Matching session"
 
     chat_session_service_mock.get_list.assert_awaited_once()
 
     user_id, filters = chat_session_service_mock.get_list.await_args.args
 
-    assert user_id == 1
+    assert user_id == TEST_USER_ID
     assert filters.search == "matching"
     assert filters.limit == 10
     assert filters.offset == 0
@@ -254,21 +259,23 @@ def test_get_chat_session_success(
     """Test successful chat session retrieval by identifier."""
     chat_session_service_mock.get_chat_session.return_value = (
         create_chat_session_response(
-            session_id=1,
+            session_id=TEST_SESSION_ID,
             title="Test session",
         )
     )
 
-    response = client.get("/chat/1")
+    response = client.get(f"/chat/{TEST_SESSION_ID}")
 
     assert response.status_code == 200
 
     data = response.json()
 
-    assert data["id"] == 1
+    assert data["id"] == str(TEST_SESSION_ID)
     assert data["title"] == "Test session"
 
-    chat_session_service_mock.get_chat_session.assert_awaited_once_with(1, 1)
+    chat_session_service_mock.get_chat_session.assert_awaited_once_with(
+        TEST_USER_ID, TEST_SESSION_ID
+    )
 
 
 def test_update_chat_session_success(
@@ -278,13 +285,13 @@ def test_update_chat_session_success(
     """Test successful chat session update."""
     chat_session_service_mock.update_chat_session.return_value = (
         create_chat_session_response(
-            session_id=1,
+            session_id=TEST_SESSION_ID,
             title="Updated session",
         )
     )
 
     response = client.patch(
-        "/chat/1",
+        f"/chat/{TEST_SESSION_ID}",
         json={
             "title": "Updated session",
         },
@@ -294,7 +301,7 @@ def test_update_chat_session_success(
 
     data = response.json()
 
-    assert data["id"] == 1
+    assert data["id"] == str(TEST_SESSION_ID)
     assert data["title"] == "Updated session"
 
     chat_session_service_mock.update_chat_session.assert_awaited_once()
@@ -303,8 +310,8 @@ def test_update_chat_session_success(
         chat_session_service_mock.update_chat_session.await_args.args
     )
 
-    assert user_id == 1
-    assert session_id == 1
+    assert user_id == TEST_USER_ID
+    assert session_id == TEST_SESSION_ID
     assert update_data.title == "Updated session"
 
 
@@ -315,12 +322,14 @@ def test_delete_chat_session_success(
     """Test successful chat session deletion."""
     chat_session_service_mock.delete_chat_session.return_value = None
 
-    response = client.delete("/chat/1")
+    response = client.delete(f"/chat/{TEST_SESSION_ID}")
 
     assert response.status_code == 200
     assert response.json() == {"status": "deleted"}
 
-    chat_session_service_mock.delete_chat_session.assert_awaited_once_with(1, 1)
+    chat_session_service_mock.delete_chat_session.assert_awaited_once_with(
+        TEST_USER_ID, TEST_SESSION_ID
+    )
 
 
 def test_create_chat_session_uses_current_user_id(
@@ -329,7 +338,7 @@ def test_create_chat_session_uses_current_user_id(
 ) -> None:
     """Test that chat session creation passes current user id to service."""
     chat_session_service_mock.create_chat_session.return_value = (
-        create_chat_session_response(session_id=1)
+        create_chat_session_response(session_id=TEST_SESSION_ID)
     )
 
     response = client.post(
@@ -345,7 +354,7 @@ def test_create_chat_session_uses_current_user_id(
 
     user_id, _ = chat_session_service_mock.create_chat_session.await_args.args
 
-    assert user_id == 1
+    assert user_id == TEST_USER_ID
 
 
 def test_get_chat_sessions_uses_current_user_id(
@@ -363,7 +372,7 @@ def test_get_chat_sessions_uses_current_user_id(
 
     user_id, _ = chat_session_service_mock.get_list.await_args.args
 
-    assert user_id == 1
+    assert user_id == TEST_USER_ID
 
 
 def test_get_chat_session_uses_current_user_id(
@@ -372,14 +381,16 @@ def test_get_chat_session_uses_current_user_id(
 ) -> None:
     """Test that chat session retrieval passes current user id to service."""
     chat_session_service_mock.get_chat_session.return_value = (
-        create_chat_session_response(session_id=1)
+        create_chat_session_response(session_id=TEST_SESSION_ID)
     )
 
-    response = client.get("/chat/1")
+    response = client.get(f"/chat/{TEST_SESSION_ID}")
 
     assert response.status_code == 200
 
-    chat_session_service_mock.get_chat_session.assert_awaited_once_with(1, 1)
+    chat_session_service_mock.get_chat_session.assert_awaited_once_with(
+        TEST_USER_ID, TEST_SESSION_ID
+    )
 
 
 def test_update_chat_session_uses_current_user_id(
@@ -389,13 +400,13 @@ def test_update_chat_session_uses_current_user_id(
     """Test that chat session update passes current user id to service."""
     chat_session_service_mock.update_chat_session.return_value = (
         create_chat_session_response(
-            session_id=1,
+            session_id=TEST_SESSION_ID,
             title="Updated session",
         )
     )
 
     response = client.patch(
-        "/chat/1",
+        f"/chat/{TEST_SESSION_ID}",
         json={
             "title": "Updated session",
         },
@@ -409,8 +420,8 @@ def test_update_chat_session_uses_current_user_id(
         chat_session_service_mock.update_chat_session.await_args.args
     )
 
-    assert user_id == 1
-    assert session_id == 1
+    assert user_id == TEST_USER_ID
+    assert session_id == TEST_SESSION_ID
 
 
 def test_delete_chat_session_uses_current_user_id(
@@ -420,8 +431,10 @@ def test_delete_chat_session_uses_current_user_id(
     """Test that chat session deletion passes current user id to service."""
     chat_session_service_mock.delete_chat_session.return_value = None
 
-    response = client.delete("/chat/1")
+    response = client.delete(f"/chat/{TEST_SESSION_ID}")
 
     assert response.status_code == 200
 
-    chat_session_service_mock.delete_chat_session.assert_awaited_once_with(1, 1)
+    chat_session_service_mock.delete_chat_session.assert_awaited_once_with(
+        TEST_USER_ID, TEST_SESSION_ID
+    )

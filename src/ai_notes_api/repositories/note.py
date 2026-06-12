@@ -5,6 +5,7 @@ soft-deleting notes in the database.
 """
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import or_, select
@@ -35,12 +36,12 @@ class NoteRepository(BaseRepository):
 
         return note
 
-    async def get_by_id(self, user_id: int, note_id: int) -> Note | None:
+    async def get_by_id(self, user_id: UUID, note_id: UUID) -> Note | None:
         """Return a note by its identifier.
 
         Args:
-            user_id (int): Unique identifier of the user who owns the note.
-            note_id (int): Unique note identifier.
+            user_id (UUID): Unique identifier of the user who owns the note.
+            note_id (UUID): Unique note identifier.
 
         Returns:
             Note | None: Matching note if found and not soft-deleted; otherwise, None.
@@ -62,11 +63,11 @@ class NoteRepository(BaseRepository):
 
         return note
 
-    async def get_list(self, user_id: int, filters: NoteListFilters) -> list[Note]:
+    async def get_list(self, user_id: UUID, filters: NoteListFilters) -> list[Note]:
         """Return a paginated list of notes.
 
         Args:
-            user_id (int): Unique identifier of the user whose notes are requested.
+            user_id (UUID): Unique identifier of the user whose notes are requested.
             filters (NoteListFilters): Filters used to narrow the result set.
 
         Returns:

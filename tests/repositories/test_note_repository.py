@@ -1,6 +1,7 @@
 """Tests for note repository."""
 
 from datetime import datetime
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -55,7 +56,7 @@ async def other_user(async_session: AsyncSession) -> User:
 
 def create_note(  # noqa: PLR0913
     *,
-    user_id: int,
+    user_id: UUID,
     title: str = "Test note",
     content: str = "Test content",
     tags: list[str] | None = None,
@@ -65,7 +66,7 @@ def create_note(  # noqa: PLR0913
     """Create a note instance for repository tests.
 
     Args:
-        user_id (int): Identifier of the user who owns the note.
+        user_id (UUID): Identifier of the user who owns the note.
         title (str): Note title.
         content (str): Note content.
         tags (list[str] | None): Note tags.
@@ -149,7 +150,7 @@ async def test_get_note_not_found(
     """Test that note retrieval returns None when the note is not found."""
     repository = NoteRepository(session=async_session)
 
-    note = await repository.get_by_id(test_user.id, 999)
+    note = await repository.get_by_id(test_user.id, uuid4())
 
     assert note is None
 

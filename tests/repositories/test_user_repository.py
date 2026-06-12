@@ -1,5 +1,7 @@
 """Tests for user repository."""
 
+from uuid import uuid4
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -177,7 +179,7 @@ async def test_get_user_by_id_not_found(async_session: AsyncSession) -> None:
     """Test that user retrieval by identifier returns None when not found."""
     repository = UserRepository(session=async_session)
 
-    user = await repository.get_by_id(999)
+    user = await repository.get_by_id(uuid4())
 
     assert user is None
 
