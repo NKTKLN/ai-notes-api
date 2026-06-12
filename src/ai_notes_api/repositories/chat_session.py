@@ -5,6 +5,7 @@ soft-deleting chat sessions in the database.
 """
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import select
@@ -38,14 +39,14 @@ class ChatSessionRepository(BaseRepository):
 
     async def get_by_id(
         self,
-        user_id: int,
-        session_id: int,
+        user_id: UUID,
+        session_id: UUID,
     ) -> ChatSession | None:
         """Return a chat session by its identifier.
 
         Args:
-            user_id (int): Unique identifier of the user who owns the chat session.
-            session_id (int): Unique chat session identifier.
+            user_id (UUID): Unique identifier of the user who owns the chat session.
+            session_id (UUID): Unique chat session identifier.
 
         Returns:
             ChatSession | None: Matching chat session if found and not
@@ -70,13 +71,13 @@ class ChatSessionRepository(BaseRepository):
 
     async def get_list(
         self,
-        user_id: int,
+        user_id: UUID,
         filters: ChatSessionListFilters,
     ) -> list[ChatSession]:
         """Return a paginated list of chat sessions.
 
         Args:
-            user_id (int): Unique identifier of the user whose chat sessions
+            user_id (UUID): Unique identifier of the user whose chat sessions
                 are requested.
             filters (ChatSessionListFilters): Filters used to narrow the result set.
 

@@ -4,6 +4,8 @@ This module provides a repository for creating, reading, updating, and deleting
 users in the database.
 """
 
+from uuid import UUID
+
 from loguru import logger
 from sqlalchemy import select
 
@@ -32,11 +34,11 @@ class UserRepository(BaseRepository):
 
         return user
 
-    async def get_by_id(self, user_id: int) -> User | None:
+    async def get_by_id(self, user_id: UUID) -> User | None:
         """Return a user by its identifier.
 
         Args:
-            user_id (int): Unique user identifier.
+            user_id (UUID): Unique user identifier.
 
         Returns:
             User | None: Matching user if found; otherwise, None.

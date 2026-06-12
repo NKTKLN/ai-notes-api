@@ -4,6 +4,8 @@ This module provides business logic for user registration, authentication,
 and access token creation.
 """
 
+from uuid import UUID
+
 from ai_notes_api.core import create_access_token, hash_password, verify_password
 from ai_notes_api.db.models import User
 from ai_notes_api.exceptions import (
@@ -87,11 +89,11 @@ class AuthService:
 
         return user
 
-    async def get_user(self, user_id: int) -> User:
+    async def get_user(self, user_id: UUID) -> User:
         """Return a user by its identifier.
 
         Args:
-            user_id (int): Unique user identifier.
+            user_id (UUID): Unique user identifier.
 
         Returns:
             User: Matching user.
