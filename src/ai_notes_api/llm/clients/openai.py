@@ -12,6 +12,7 @@ from openai import OpenAI
 
 from ai_notes_api.core import settings
 from ai_notes_api.llm.base import BaseLLMClient
+from ai_notes_api.llm.exceptions import LLMDisabledError
 from ai_notes_api.llm.models import LLMResponse, LLMStreamEvent, LLMToolCall
 
 
@@ -19,15 +20,18 @@ class OpenAILLMClient(BaseLLMClient):
     """LLM client backed by the OpenAI API."""
 
     def __init__(self) -> None:
-        """Initialize the OpenAI client from application settings."""
-        self.client = OpenAI(
-            api_key=settings.OPEN_AI_API_KEY,
-            base_url=settings.OPEN_AI_API_URL,
-        )
+        """Initialize the OpenAI client from application settings.
 
-        self.model = settings.OPEN_AI_MODEL
-        self.embedding_model = settings.OPEN_AI_EMBEDDING_MODEL
-        self.max_output_tokens = settings.OPEN_AI_MAX_OUTPUT_TOKENS
+        Raises:
+            LLMDisabledError: If OpenAI LLM usage is disabled in settings.
+        """
+        if not settings.use_open_ai:
+            raise LLMDisabledError("OpenAI")
+
+        self.client = OpenAI(
+            api_key=settings.open_ai_api_key,
+            base_url=settings.open_ai_api_url,
+        )
 
     def _build_response_kwargs(  # noqa: PLR0913
         self,
@@ -56,10 +60,10 @@ class OpenAILLMClient(BaseLLMClient):
             dict[str, Any]: Keyword arguments to pass to the responses API.
         """
         kwargs: dict[str, Any] = {
-            "model": self.model,
+            "model": settings.open_ai_model,
             "input": input_data,
             "max_output_tokens": max_output_tokens
-            or settings.OPEN_AI_MAX_OUTPUT_TOKENS,
+            or settings.open_ai_max_output_tokens,
         }
 
         if tools is not None:
@@ -198,7 +202,7 @@ class OpenAILLMClient(BaseLLMClient):
             return []
 
         response = self.client.embeddings.create(
-            model=self.embedding_model,
+            model=settings.open_ai_embedding_model,
             input=texts,
             encoding_format="float",
         )
