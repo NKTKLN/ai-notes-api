@@ -5,5 +5,6 @@ tools.
 """
 
 from .tools import ToolRegistry
+from .client import LLMClient
 
-__all__ = ["ToolRegistry"]
+__all__ = ["ToolRegistry", "LLMClient"]

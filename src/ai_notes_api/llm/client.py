@@ -6,10 +6,10 @@ embeddings.
 """
 
 from collections.abc import Generator
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from loguru import logger
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from ai_notes_api.core import settings
 from ai_notes_api.llm.models import LLMResponse, LLMStreamEvent, LLMToolCall
@@ -20,7 +20,7 @@ class LLMClient:
 
     def __init__(self) -> None:
         """Initialize the OpenAI client from application settings."""
-        self.client = OpenAI(
+        self.client = AsyncOpenAI(
             api_key=settings.open_ai_api_key,
             base_url=settings.open_ai_api_url,
         )
@@ -30,6 +30,11 @@ class LLMClient:
             settings.open_ai_api_url,
             settings.open_ai_model,
         )
+
+    async def aclose(self) -> None:
+        """Close underlying async HTTP resources."""
+        await self.client.close()
+        logger.debug("Async LLM client closed")
 
     def _build_response_kwargs(  # noqa: PLR0913
         self,
@@ -116,7 +121,7 @@ class LLMClient:
             raw=response,
         )
 
-    def create_response(  # noqa: PLR0913
+    async def create_response(  # noqa: PLR0913
         self,
         input_data: str | list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
@@ -158,13 +163,13 @@ class LLMClient:
             kwargs["max_output_tokens"],
         )
 
-        response = self.client.responses.create(**kwargs)
+        response = await self.client.responses.create(**kwargs)
 
         logger.info("LLM response created: model={}", kwargs["model"])
 
         return self._map_response(response)
 
-    def get_text_response(  # noqa: PLR0913
+    async def get_text_response(  # noqa: PLR0913
         self,
         input_data: str | list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
@@ -190,7 +195,7 @@ class LLMClient:
         Returns:
             str: Generated response text.
         """
-        response = self.create_response(
+        response = await self.create_response(
             input_data=input_data,
             tools=tools,
             instructions=instructions,
@@ -201,7 +206,7 @@ class LLMClient:
 
         return response.text
 
-    def create_embedding(self, texts: list[str]) -> list[list[float]]:
+    async def create_embedding(self, texts: list[str]) -> list[list[float]]:
         """Create embedding vectors for the given texts.
 
         Args:
@@ -221,7 +226,7 @@ class LLMClient:
             settings.open_ai_embedding_model,
         )
 
-        response = self.client.embeddings.create(
+        response = await self.client.embeddings.create(
             model=settings.open_ai_embedding_model,
             input=texts,
             encoding_format="float",
@@ -231,13 +236,13 @@ class LLMClient:
 
         return [item.embedding for item in response.data]
 
-    def stream_response_events(
+    async def stream_response_events(
         self,
         input_data: str | list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> Generator[LLMStreamEvent]:
+    ) -> AsyncGenerator[LLMStreamEvent, None, None]:
         """Stream response events from the model as they are produced.
 
         Args:
@@ -269,15 +274,15 @@ class LLMClient:
             kwargs["max_output_tokens"],
         )
 
-        with self.client.responses.stream(**kwargs) as stream:
-            for event in stream:
+        async with self.client.responses.stream(**kwargs) as stream:
+            async for event in stream:
                 if event.type == "response.output_text.delta":
                     yield LLMStreamEvent(
                         type="delta",
                         delta=event.delta,
                     )
 
-            final_response = stream.get_final_response()
+            final_response = await stream.get_final_response()
 
         logger.info("LLM stream completed: model={}", kwargs["model"])
 
