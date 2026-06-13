@@ -19,6 +19,9 @@ dependencies = [
     "passlib>=1.7.4",
     "bcrypt==4.0.1",
     "python-multipart>=0.0.32",
+    "markitdown[all]>=0.1.6",
+    "openai>=2.41.1",
+    "numpy>=2.4.6",
 ]
 
 [dependency-groups]
@@ -42,6 +45,9 @@ dev = [
 [build-system]
 requires = ["hatchling>=1.26.0"]
 build-backend = "hatchling.build"
+
+[tool.uv]
+prerelease = "if-necessary-or-explicit"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ai_notes_api"]
