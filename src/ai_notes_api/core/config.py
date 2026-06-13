@@ -24,7 +24,6 @@ class Settings(BaseSettings):
         jwt_secret_key (str): Secret key used to sign and verify JWT tokens.
         jwt_algorithm (str): Algorithm used to sign and verify JWT tokens.
         access_token_expire_minutes (int): Access token lifetime in minutes.
-        use_open_ai (bool): Whether OpenAI integration is enabled.
         open_ai_api_key (str): OpenAI API key.
         open_ai_model (str): OpenAI chat/completion model name.
         open_ai_embedding_model (str): OpenAI embedding model name.
@@ -49,7 +48,6 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256")
     access_token_expire_minutes: int = Field(default=30)
 
-    use_open_ai: bool = Field(default=False)
     open_ai_api_key: str = Field(...)
     open_ai_model: str = Field(...)
     open_ai_embedding_model: str = Field(default="text-embedding-3-small")

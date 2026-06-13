@@ -11,23 +11,14 @@ from typing import Any
 from openai import OpenAI
 
 from ai_notes_api.core import settings
-from ai_notes_api.llm.base import BaseLLMClient
-from ai_notes_api.llm.exceptions import LLMDisabledError
 from ai_notes_api.llm.models import LLMResponse, LLMStreamEvent, LLMToolCall
 
 
-class OpenAILLMClient(BaseLLMClient):
+class LLMClient:
     """LLM client backed by the OpenAI API."""
 
     def __init__(self) -> None:
-        """Initialize the OpenAI client from application settings.
-
-        Raises:
-            LLMDisabledError: If OpenAI LLM usage is disabled in settings.
-        """
-        if not settings.use_open_ai:
-            raise LLMDisabledError("OpenAI")
-
+        """Initialize the OpenAI client from application settings."""
         self.client = OpenAI(
             api_key=settings.open_ai_api_key,
             base_url=settings.open_ai_api_url,
