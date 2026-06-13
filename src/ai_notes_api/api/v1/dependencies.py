@@ -1,13 +1,13 @@
 """Service dependencies module.
 
-This module defines FastAPI dependencies for constructing application services
-and resolving authenticated users.
+This module defines FastAPI dependencies for constructing application services,
+resolving authenticated users, and accessing shared application clients.
 """
 
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from ai_notes_api.core import decode_access_token
 from ai_notes_api.db.models import User
 from ai_notes_api.db.session import get_db
 from ai_notes_api.exceptions import InvalidTokenError
+from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
     ChatSessionRepository,
     NoteRepository,
@@ -125,3 +126,15 @@ def get_chat_session_service(
     repository = ChatSessionRepository(session)
 
     return ChatSessionService(repository)
+
+
+def get_llm_client(request: Request) -> LLMClient:
+    """Provide the shared LLM client instance.
+
+    Args:
+        request (Request): FastAPI request object containing application state.
+
+    Returns:
+        LLMClient: Shared LLM client instance.
+    """
+    return request.app.state.llm_client
