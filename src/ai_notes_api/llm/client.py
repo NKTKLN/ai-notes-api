@@ -8,6 +8,7 @@ embeddings.
 from collections.abc import Generator
 from typing import Any
 
+from loguru import logger
 from openai import OpenAI
 
 from ai_notes_api.core import settings
@@ -22,6 +23,12 @@ class LLMClient:
         self.client = OpenAI(
             api_key=settings.open_ai_api_key,
             base_url=settings.open_ai_api_url,
+        )
+
+        logger.debug(
+            "LLM client initialized: base_url={}, model={}",
+            settings.open_ai_api_url,
+            settings.open_ai_model,
         )
 
     def _build_response_kwargs(  # noqa: PLR0913
@@ -96,6 +103,12 @@ class LLMClient:
                     )
                 )
 
+        logger.debug(
+            "LLM response mapped: output_items={}, tool_calls={}",
+            len(output_items),
+            len(tool_calls),
+        )
+
         return LLMResponse(
             text=getattr(response, "output_text", "") or "",
             tool_calls=tool_calls,
@@ -138,7 +151,16 @@ class LLMClient:
             temperature=temperature,
         )
 
+        logger.debug(
+            "Creating LLM response: model={}, tools={}, max_output_tokens={}",
+            kwargs["model"],
+            len(tools) if tools is not None else 0,
+            kwargs["max_output_tokens"],
+        )
+
         response = self.client.responses.create(**kwargs)
+
+        logger.info("LLM response created: model={}", kwargs["model"])
 
         return self._map_response(response)
 
@@ -190,13 +212,22 @@ class LLMClient:
             empty list if no texts are provided.
         """
         if not texts:
+            logger.debug("No texts provided for embedding; returning empty list")
             return []
+
+        logger.debug(
+            "Creating embeddings: count={}, model={}",
+            len(texts),
+            settings.open_ai_embedding_model,
+        )
 
         response = self.client.embeddings.create(
             model=settings.open_ai_embedding_model,
             input=texts,
             encoding_format="float",
         )
+
+        logger.info("Embeddings created: count={}", len(response.data))
 
         return [item.embedding for item in response.data]
 
@@ -231,6 +262,13 @@ class LLMClient:
             temperature=temperature,
         )
 
+        logger.debug(
+            "Streaming LLM response: model={}, tools={}, max_output_tokens={}",
+            kwargs["model"],
+            len(tools) if tools is not None else 0,
+            kwargs["max_output_tokens"],
+        )
+
         with self.client.responses.stream(**kwargs) as stream:
             for event in stream:
                 if event.type == "response.output_text.delta":
@@ -240,6 +278,8 @@ class LLMClient:
                     )
 
             final_response = stream.get_final_response()
+
+        logger.info("LLM stream completed: model={}", kwargs["model"])
 
         yield LLMStreamEvent(
             type="final",

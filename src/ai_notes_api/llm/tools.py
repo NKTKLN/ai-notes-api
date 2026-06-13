@@ -8,6 +8,8 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from loguru import logger
+
 from ai_notes_api.llm.exceptions import (
     ToolAlreadyRegisteredError,
     ToolHandlerNotCallableError,
@@ -43,9 +45,11 @@ class ToolRegistry:
             ToolHandlerNotCallableError: If the provided handler is not callable.
         """
         if name in self._tools:
+            logger.warning("Tool already registered: name={}", name)
             raise ToolAlreadyRegisteredError(name)
 
         if not callable(handler):
+            logger.warning("Tool handler is not callable: name={}", name)
             raise ToolHandlerNotCallableError(name)
 
         self._tools[name] = ToolSpec(
@@ -54,6 +58,8 @@ class ToolRegistry:
             parameters=parameters,
             handler=handler,
         )
+
+        logger.info("Tool registered: name={}", name)
 
     def call(self, name: str, arguments: str) -> str:
         """Call a registered tool with JSON-encoded arguments.
@@ -67,15 +73,21 @@ class ToolRegistry:
             or an error message on failure.
         """
         if name not in self._tools:
+            logger.warning("Tool call for unknown tool: name={}", name)
             return self._make_error(f"Unknown tool: {name}")
+
+        logger.debug("Tool call started: name={}", name)
 
         try:
             parsed_arguments = json.loads(arguments)
 
             if not isinstance(parsed_arguments, dict):
+                logger.warning("Tool arguments are not a JSON object: name={}", name)
                 return self._make_error("Tool arguments must be a JSON object")
 
             result = self._tools[name].handler(**parsed_arguments)
+
+            logger.info("Tool call succeeded: name={}", name)
 
             return json.dumps(
                 {
@@ -87,6 +99,7 @@ class ToolRegistry:
             )
 
         except Exception as error:
+            logger.exception("Tool call failed: name={}", name)
             return self._make_error(str(error))
 
     def _make_error(self, message: str) -> str:
