@@ -1,4 +1,4 @@
-"""Tests for chat API router."""
+"""Tests for chat session API router."""
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
@@ -8,7 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from ai_notes_api.api.v1.chat import router
+from ai_notes_api.api.v1.chat_sessions import router
 from ai_notes_api.api.v1.dependencies import (
     get_chat_session_service,
     get_current_user,
@@ -119,7 +119,7 @@ def test_create_chat_session_success(
     )
 
     response = client.post(
-        "/chat",
+        "/chat/sessions",
         json={
             "title": "Test session",
         },
@@ -156,7 +156,7 @@ def test_get_chat_sessions_success(
         ),
     ]
 
-    response = client.get("/chat?limit=10&offset=0")
+    response = client.get("/chat/sessions?limit=10&offset=0")
 
     assert response.status_code == 200
 
@@ -189,7 +189,7 @@ def test_get_chat_sessions_empty_success(
     """Test successful empty chat sessions list retrieval."""
     chat_session_service_mock.get_list.return_value = []
 
-    response = client.get("/chat?limit=10&offset=0")
+    response = client.get("/chat/sessions?limit=10&offset=0")
 
     assert response.status_code == 200
 
@@ -222,7 +222,7 @@ def test_get_chat_sessions_with_filters_success(
     ]
 
     response = client.get(
-        "/chat",
+        "/chat/sessions",
         params={
             "search": "matching",
             "limit": 10,
@@ -264,7 +264,7 @@ def test_get_chat_session_success(
         )
     )
 
-    response = client.get(f"/chat/{TEST_SESSION_ID}")
+    response = client.get(f"/chat/sessions/{TEST_SESSION_ID}")
 
     assert response.status_code == 200
 
@@ -291,7 +291,7 @@ def test_update_chat_session_success(
     )
 
     response = client.patch(
-        f"/chat/{TEST_SESSION_ID}",
+        f"/chat/sessions/{TEST_SESSION_ID}",
         json={
             "title": "Updated session",
         },
@@ -322,7 +322,7 @@ def test_delete_chat_session_success(
     """Test successful chat session deletion."""
     chat_session_service_mock.delete_chat_session.return_value = None
 
-    response = client.delete(f"/chat/{TEST_SESSION_ID}")
+    response = client.delete(f"/chat/sessions/{TEST_SESSION_ID}")
 
     assert response.status_code == 200
     assert response.json() == {"status": "deleted"}
@@ -342,7 +342,7 @@ def test_create_chat_session_uses_current_user_id(
     )
 
     response = client.post(
-        "/chat",
+        "/chat/sessions",
         json={
             "title": "Test chat session",
         },
@@ -364,7 +364,7 @@ def test_get_chat_sessions_uses_current_user_id(
     """Test that chat sessions list retrieval passes current user id to service."""
     chat_session_service_mock.get_list.return_value = []
 
-    response = client.get("/chat")
+    response = client.get("/chat/sessions")
 
     assert response.status_code == 200
 
@@ -384,7 +384,7 @@ def test_get_chat_session_uses_current_user_id(
         create_chat_session_response(session_id=TEST_SESSION_ID)
     )
 
-    response = client.get(f"/chat/{TEST_SESSION_ID}")
+    response = client.get(f"/chat/sessions/{TEST_SESSION_ID}")
 
     assert response.status_code == 200
 
@@ -406,7 +406,7 @@ def test_update_chat_session_uses_current_user_id(
     )
 
     response = client.patch(
-        f"/chat/{TEST_SESSION_ID}",
+        f"/chat/sessions/{TEST_SESSION_ID}",
         json={
             "title": "Updated session",
         },
@@ -431,7 +431,7 @@ def test_delete_chat_session_uses_current_user_id(
     """Test that chat session deletion passes current user id to service."""
     chat_session_service_mock.delete_chat_session.return_value = None
 
-    response = client.delete(f"/chat/{TEST_SESSION_ID}")
+    response = client.delete(f"/chat/sessions/{TEST_SESSION_ID}")
 
     assert response.status_code == 200
 

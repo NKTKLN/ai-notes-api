@@ -1,4 +1,4 @@
-"""Chat API router.
+"""Chat sessions API router.
 
 This module defines API endpoints for creating and managing chat sessions.
 """
@@ -26,8 +26,8 @@ from ai_notes_api.schemas import (
 from ai_notes_api.services import ChatSessionService
 
 router = APIRouter(
-    prefix="/chat",
-    tags=["Chat"],
+    prefix="/chat/sessions",
+    tags=["Sessions"],
 )
 
 
