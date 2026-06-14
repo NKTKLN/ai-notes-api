@@ -5,8 +5,8 @@ interface for generating responses, streaming responses, and creating
 embeddings.
 """
 
-from collections.abc import Generator
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from loguru import logger
 from openai import AsyncOpenAI
