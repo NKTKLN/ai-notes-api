@@ -8,9 +8,9 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import select, update
 
-from ai_notes_api.db.models import ChatSession
+from ai_notes_api.db.models import ChatSession, Message
 from ai_notes_api.repositories.base import BaseRepository
 from ai_notes_api.repositories.filters import ChatSessionListFilters
 
@@ -138,16 +138,25 @@ class ChatSessionRepository(BaseRepository):
         return chat_session
 
     async def soft_delete(self, chat_session: ChatSession) -> None:
-        """Soft-delete a chat session.
+        """Soft-delete a chat session and its messages.
 
-        Sets the chat session deletion timestamp instead of removing the row
-        from the database.
+        Sets the chat session and related message deletion timestamps instead of
+        removing rows from the database.
 
         Args:
             chat_session (ChatSession): Chat session instance to soft-delete.
         """
-        chat_session.deleted_at = datetime.now(UTC)
+        now = datetime.now(UTC)
+
+        chat_session.deleted_at = now
+
+        await self.session.execute(
+            update(Message)
+            .where(Message.session_id == chat_session.id)
+            .where(Message.deleted_at.is_(None))
+            .values(deleted_at=now)
+        )
 
         await self.session.flush()
 
-        logger.info("Chat session soft-deleted: id={}", chat_session.id)
+        logger.info("Chat session with messsages soft-deleted: id={}", chat_session.id)
