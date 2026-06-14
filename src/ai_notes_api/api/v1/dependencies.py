@@ -4,7 +4,7 @@ This module defines FastAPI dependencies for constructing application services,
 resolving authenticated users, and accessing shared application clients.
 """
 
-from typing import Annotated
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import Depends, Request
@@ -137,4 +137,4 @@ def get_llm_client(request: Request) -> LLMClient:
     Returns:
         LLMClient: Shared LLM client instance.
     """
-    return request.app.state.llm_client
+    return cast(LLMClient, request.app.state.llm_client)

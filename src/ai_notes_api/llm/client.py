@@ -242,7 +242,7 @@ class LLMClient:
         tools: list[dict[str, Any]] | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> AsyncGenerator[LLMStreamEvent, None, None]:
+    ) -> AsyncGenerator[LLMStreamEvent]:
         """Stream response events from the model as they are produced.
 
         Args:
