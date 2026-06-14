@@ -47,6 +47,9 @@ jobs:
       JWT_ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
 
+      OPEN_AI_API_KEY: "sk-or-v1-some-key"
+      OPEN_AI_MODEL: "gpt-5.1-chat"
+
     steps:
       - uses: actions/checkout@v4
 
