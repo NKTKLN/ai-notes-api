@@ -279,6 +279,7 @@ class LLMClient:
                 if event.type == "response.output_text.delta":
                     yield LLMStreamEvent(
                         type="delta",
+                        id=f"{event.item_id}:{event.sequence_number}",
                         delta=event.delta,
                     )
 

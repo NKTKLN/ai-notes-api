@@ -64,10 +64,12 @@ class LLMStreamEvent:
     Attributes:
         type (Literal["delta", "final"]): Event type, either an incremental
             delta or the final response.
+        id (str | None): Optional event identifier.
         delta (str | None): Incremental text chunk for delta events.
         response (LLMResponse | None): Complete response for final events.
     """
 
     type: Literal["delta", "final"]
+    id: str | None = None
     delta: str | None = None
     response: LLMResponse | None = None
