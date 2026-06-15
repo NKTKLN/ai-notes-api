@@ -76,12 +76,18 @@ class FakeStream:
         self._events = iter(
             [
                 SimpleNamespace(
+                    type="response.created",
+                    response=SimpleNamespace(id="resp_123"),
+                ),
+                SimpleNamespace(
                     type="response.output_text.delta",
                     delta="Hel",
+                    sequence_number=1,
                 ),
                 SimpleNamespace(
                     type="response.output_text.delta",
                     delta="lo",
+                    sequence_number=2,
                 ),
                 SimpleNamespace(
                     type="response.completed",
@@ -296,9 +302,11 @@ async def test_stream_response_events_yields_deltas_and_final(
 
     assert events[0].type == "delta"
     assert events[0].delta == "Hel"
+    assert events[0].id == "resp_123:1"
 
     assert events[1].type == "delta"
     assert events[1].delta == "lo"
+    assert events[1].id == "resp_123:2"
 
     assert events[2].type == "final"
     assert events[2].response is not None
