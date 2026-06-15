@@ -77,15 +77,13 @@ class LLMService:
     async def generate_response(
         self,
         user_id: UUID,
-        session_id: UUID,
-        message: str,
+        message: UserMessageCreateSchema,
     ) -> ChatCompletionResponseSchema:
         """Generate and persist an assistant response.
 
         Args:
             user_id (UUID): Unique identifier of the user requesting the response.
-            session_id (UUID): Unique chat session identifier.
-            message (str): User message content.
+            message (UserMessageCreateSchema): Validated user message data.
 
         Returns:
             ChatCompletionResponseSchema: Generated assistant response data.
@@ -95,15 +93,12 @@ class LLMService:
         """
         await self.messages.create_user_message(
             user_id=user_id,
-            data=UserMessageCreateSchema(
-                session_id=session_id,
-                content=message,
-            ),
+            data=message,
         )
 
         context_messages = await self.messages.get_context_messages(
             user_id=user_id,
-            session_id=session_id,
+            session_id=message.session_id,
             limit=settings.llm_context_messages_limit,
         )
 
@@ -113,7 +108,7 @@ class LLMService:
 
         assistant_message = await self._create_assistant_message_from_response(
             user_id=user_id,
-            session_id=session_id,
+            session_id=message.session_id,
             llm_response=llm_response,
         )
 
@@ -130,34 +125,28 @@ class LLMService:
     async def stream_response(
         self,
         user_id: UUID,
-        session_id: UUID,
-        message: str,
+        message: UserMessageCreateSchema,
     ) -> AsyncGenerator[LLMStreamEvent]:
         """Stream and persist an assistant response.
 
         Args:
             user_id (UUID): Unique identifier of the user requesting the response.
-            session_id (UUID): Unique chat session identifier.
-            message (str): User message content.
+            message (UserMessageCreateSchema): Validated user message data.
 
         Yields:
-            LLMStreamEvent: Stream event containing a text delta or final
-            response.
+            LLMStreamEvent: Stream event containing a text delta or final response.
 
         Raises:
             ChatSessionNotFoundError: If no accessible chat session exists.
         """
         await self.messages.create_user_message(
             user_id=user_id,
-            data=UserMessageCreateSchema(
-                session_id=session_id,
-                content=message,
-            ),
+            data=message,
         )
 
         context_messages = await self.messages.get_context_messages(
             user_id=user_id,
-            session_id=session_id,
+            session_id=message.session_id,
             limit=settings.llm_context_messages_limit,
         )
 
@@ -167,7 +156,7 @@ class LLMService:
             if event.type == "final" and event.response is not None:
                 await self._create_assistant_message_from_response(
                     user_id=user_id,
-                    session_id=session_id,
+                    session_id=message.session_id,
                     llm_response=event.response,
                 )
 
