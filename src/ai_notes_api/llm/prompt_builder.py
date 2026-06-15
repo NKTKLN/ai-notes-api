@@ -26,7 +26,8 @@ class PromptBuilder:
         # "Не выдумывай факты из документов: если данных нет, так и скажи.\n"
     )
 
-    def build(self, context_messages: list[Message]) -> list[dict[str, Any]]:
+    @classmethod
+    def build(cls, context_messages: list[Message]) -> list[dict[str, Any]]:
         """Build LLM input messages from chat context messages.
 
         Args:
@@ -38,7 +39,7 @@ class PromptBuilder:
         llm_messages = [
             LLMMessage(
                 role=MessageRole.SYSTEM,
-                content=self.SYSTEM_PROMPT,
+                content=cls.SYSTEM_PROMPT,
             )
         ]
 
