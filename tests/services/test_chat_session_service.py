@@ -276,7 +276,7 @@ async def test_get_chat_sessions_list_success() -> None:
         search="Test",
     )
 
-    chat_sessions = await service.get_list(TEST_USER_ID, data)
+    chat_sessions = await service.get_chat_sessions_list(TEST_USER_ID, data)
 
     assert len(chat_sessions) == 1
     assert chat_sessions[0].title == "First Test Session"

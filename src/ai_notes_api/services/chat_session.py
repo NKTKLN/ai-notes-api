@@ -54,7 +54,7 @@ class ChatSessionService:
 
         return await self.repository.create(chat_session)
 
-    async def get_list(
+    async def get_chat_sessions_list(
         self,
         user_id: UUID,
         filters: ChatSessionListQuerySchema,

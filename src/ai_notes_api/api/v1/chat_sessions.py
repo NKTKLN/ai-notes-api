@@ -94,7 +94,7 @@ async def get_chat_sessions(
         filters.search,
     )
 
-    chat_sessions = await service.get_list(user.id, filters)
+    chat_sessions = await service.get_chat_sessions_list(user.id, filters)
 
     return ChatSessionListResponseSchema(
         items=[

@@ -364,7 +364,7 @@ async def test_get_notes_list_success() -> None:
         tag="fastapi",
     )
 
-    notes = await service.get_list(TEST_USER_ID, data)
+    notes = await service.get_notes_list(TEST_USER_ID, data)
 
     assert len(notes) == 1
     assert notes[0].title == "First Test"
