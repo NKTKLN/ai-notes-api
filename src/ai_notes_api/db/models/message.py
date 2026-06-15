@@ -12,7 +12,7 @@ from sqlalchemy import ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_notes_api.db.models.base import Base
-from ai_notes_api.db.models.datetime import TimestampMixin, SoftDeleteMixin
+from ai_notes_api.db.models.datetime import SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_session import ChatSession
