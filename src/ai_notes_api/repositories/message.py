@@ -36,8 +36,38 @@ class MessageRepository(BaseRepository):
 
         return message
 
-    async def get_by_id(self, user_id: UUID, message_id: UUID) -> Message | None:
+    async def get_by_id(self, message_id: UUID) -> Message | None:
         """Return a message by its identifier.
+
+        Args:
+            message_id (UUID): Unique message identifier.
+
+        Returns:
+            Message | None: Matching message if found and not soft-deleted;
+            otherwise, None.
+        """
+        stmt = (
+            select(Message)
+            .where(Message.id == message_id)
+            .where(Message.deleted_at.is_(None))
+        )
+
+        result = await self.session.execute(stmt)
+        message = result.scalar_one_or_none()
+
+        if message is None:
+            logger.debug("Message not found: id={}", message_id)
+        else:
+            logger.debug("Message found: id={}", message_id)
+
+        return message
+
+    async def get_by_id_for_user(
+        self,
+        user_id: UUID,
+        message_id: UUID,
+    ) -> Message | None:
+        """Return a user's message by its identifier.
 
         Args:
             user_id (UUID): Unique identifier of the user who owns the chat session.
