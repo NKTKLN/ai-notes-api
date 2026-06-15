@@ -95,7 +95,7 @@ async def get_notes(
         filters.model_name,
     )
 
-    notes = await service.get_list(user.id, filters)
+    notes = await service.get_notes_list(user.id, filters)
 
     return NoteListResponseSchema(
         items=[NoteResponseSchema.model_validate(note) for note in notes],

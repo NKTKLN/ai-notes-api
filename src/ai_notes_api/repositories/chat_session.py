@@ -8,9 +8,9 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import select, update
 
-from ai_notes_api.db.models import ChatSession
+from ai_notes_api.db.models import ChatSession, Message
 from ai_notes_api.repositories.base import BaseRepository
 from ai_notes_api.repositories.filters import ChatSessionListFilters
 
@@ -37,12 +37,38 @@ class ChatSessionRepository(BaseRepository):
 
         return chat_session
 
-    async def get_by_id(
+    async def get_by_id(self, session_id: UUID) -> ChatSession | None:
+        """Return a chat session by its identifier.
+
+        Args:
+            session_id (UUID): Unique chat session identifier.
+
+        Returns:
+            ChatSession | None: Matching chat session if found and not
+            soft-deleted; otherwise, None.
+        """
+        stmt = (
+            select(ChatSession)
+            .where(ChatSession.id == session_id)
+            .where(ChatSession.deleted_at.is_(None))
+        )
+
+        result = await self.session.execute(stmt)
+        chat_session = result.scalar_one_or_none()
+
+        if chat_session is None:
+            logger.debug("Chat session not found: id={}", session_id)
+        else:
+            logger.debug("Chat session found: id={}", session_id)
+
+        return chat_session
+
+    async def get_by_id_for_user(
         self,
         user_id: UUID,
         session_id: UUID,
     ) -> ChatSession | None:
-        """Return a chat session by its identifier.
+        """Return a user's chat session by its identifier.
 
         Args:
             user_id (UUID): Unique identifier of the user who owns the chat session.
@@ -138,16 +164,25 @@ class ChatSessionRepository(BaseRepository):
         return chat_session
 
     async def soft_delete(self, chat_session: ChatSession) -> None:
-        """Soft-delete a chat session.
+        """Soft-delete a chat session and its messages.
 
-        Sets the chat session deletion timestamp instead of removing the row
-        from the database.
+        Sets the chat session and related message deletion timestamps instead of
+        removing rows from the database.
 
         Args:
             chat_session (ChatSession): Chat session instance to soft-delete.
         """
-        chat_session.deleted_at = datetime.now(UTC)
+        now = datetime.now(UTC)
+
+        chat_session.deleted_at = now
+
+        await self.session.execute(
+            update(Message)
+            .where(Message.session_id == chat_session.id)
+            .where(Message.deleted_at.is_(None))
+            .values(deleted_at=now)
+        )
 
         await self.session.flush()
 
-        logger.info("Chat session soft-deleted: id={}", chat_session.id)
+        logger.info("Chat session with messages soft-deleted: id={}", chat_session.id)

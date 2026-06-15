@@ -49,7 +49,9 @@ class NoteService:
 
         return await self.repository.create(note)
 
-    async def get_list(self, user_id: UUID, filters: NoteListQuerySchema) -> list[Note]:
+    async def get_notes_list(
+        self, user_id: UUID, filters: NoteListQuerySchema
+    ) -> list[Note]:
         """Return a list of notes matching the given filters.
 
         Args:
