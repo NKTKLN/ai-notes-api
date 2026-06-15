@@ -7,6 +7,8 @@ streaming events.
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from ai_notes_api.db.models import MessageRole
+
 
 @dataclass
 class LLMToolCall:
@@ -40,6 +42,19 @@ class LLMResponse:
     tool_calls: list[LLMToolCall] = field(default_factory=list)
     output_items: list[Any] = field(default_factory=list)
     raw: Any | None = None
+
+
+@dataclass
+class LLMMessage:
+    """Message used as model input context.
+
+    Attributes:
+        role (MessageRole): Message role.
+        content (str): Message content.
+    """
+
+    role: MessageRole
+    content: str
 
 
 @dataclass
