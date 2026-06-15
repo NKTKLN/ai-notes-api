@@ -95,7 +95,7 @@ class ChatSessionService:
             ChatSessionNotFoundError: If no chat session with the given
                 identifier exists.
         """
-        chat_session = await self.repository.get_by_id(user_id, session_id)
+        chat_session = await self.repository.get_by_id_for_user(user_id, session_id)
 
         if chat_session is None:
             raise ChatSessionNotFoundError()
@@ -122,7 +122,7 @@ class ChatSessionService:
             ChatSessionNotFoundError: If no chat session with the given
                 identifier exists.
         """
-        chat_session = await self.repository.get_by_id(user_id, session_id)
+        chat_session = await self.repository.get_by_id_for_user(user_id, session_id)
 
         if chat_session is None:
             raise ChatSessionNotFoundError()
@@ -146,7 +146,7 @@ class ChatSessionService:
             ChatSessionNotFoundError: If no chat session with the given
                 identifier exists.
         """
-        chat_session = await self.repository.get_by_id(user_id, session_id)
+        chat_session = await self.repository.get_by_id_for_user(user_id, session_id)
 
         if chat_session is None:
             raise ChatSessionNotFoundError()

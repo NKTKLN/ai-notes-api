@@ -136,6 +136,86 @@ async def test_create_chat_session_success(
 
 
 @pytest.mark.asyncio
+async def test_get_by_id_chat_session_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test successful chat session retrieval by identifier without user scope."""
+    repository = ChatSessionRepository(session=async_session)
+
+    created_chat_session = await repository.create(
+        create_chat_session(
+            user_id=test_user.id,
+            title="Test session",
+        )
+    )
+
+    chat_session = await repository.get_by_id(created_chat_session.id)
+
+    assert chat_session is not None
+    assert chat_session.id == created_chat_session.id
+    assert chat_session.user_id == test_user.id
+    assert chat_session.title == "Test session"
+    assert chat_session.deleted_at is None
+
+
+@pytest.mark.asyncio
+async def test_get_by_id_chat_session_not_found(
+    async_session: AsyncSession,
+) -> None:
+    """Test that chat session retrieval by identifier returns None when missing."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.get_by_id(uuid4())
+
+    assert chat_session is None
+
+
+@pytest.mark.asyncio
+async def test_get_by_id_chat_session_soft_deleted_not_found(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that retrieval by identifier returns None for a soft-deleted session."""
+    repository = ChatSessionRepository(session=async_session)
+
+    created_chat_session = await repository.create(
+        create_chat_session(
+            user_id=test_user.id,
+            title="Deleted session",
+        )
+    )
+
+    await repository.soft_delete(created_chat_session)
+
+    chat_session = await repository.get_by_id(created_chat_session.id)
+
+    assert chat_session is None
+
+
+@pytest.mark.asyncio
+async def test_get_by_id_chat_session_is_not_scoped_to_user(
+    async_session: AsyncSession,
+    other_user: User,
+) -> None:
+    """Test that retrieval by identifier is not restricted to a single owner."""
+    repository = ChatSessionRepository(session=async_session)
+
+    other_chat_session = await repository.create(
+        create_chat_session(
+            user_id=other_user.id,
+            title="Other session",
+        )
+    )
+
+    chat_session = await repository.get_by_id(other_chat_session.id)
+
+    assert chat_session is not None
+    assert chat_session.id == other_chat_session.id
+    assert chat_session.user_id == other_user.id
+
+
+@pytest.mark.asyncio
 async def test_get_chat_session_success(
     async_session: AsyncSession,
     test_user: User,
@@ -150,7 +230,7 @@ async def test_get_chat_session_success(
         )
     )
 
-    chat_session = await repository.get_by_id(
+    chat_session = await repository.get_by_id_for_user(
         test_user.id,
         created_chat_session.id,
     )
@@ -170,7 +250,7 @@ async def test_get_chat_session_not_found(
     """Test that chat session retrieval returns None when not found."""
     repository = ChatSessionRepository(session=async_session)
 
-    chat_session = await repository.get_by_id(test_user.id, uuid4())
+    chat_session = await repository.get_by_id_for_user(test_user.id, uuid4())
 
     assert chat_session is None
 
@@ -192,7 +272,7 @@ async def test_get_chat_session_soft_deleted_not_found(
 
     await repository.soft_delete(created_chat_session)
 
-    chat_session = await repository.get_by_id(
+    chat_session = await repository.get_by_id_for_user(
         test_user.id,
         created_chat_session.id,
     )
@@ -223,11 +303,11 @@ async def test_get_chat_session_by_id_returns_only_user_owned_session(
         )
     )
 
-    found_chat_session = await repository.get_by_id(
+    found_chat_session = await repository.get_by_id_for_user(
         test_user.id,
         owned_chat_session.id,
     )
-    forbidden_chat_session = await repository.get_by_id(
+    forbidden_chat_session = await repository.get_by_id_for_user(
         test_user.id,
         other_chat_session.id,
     )
@@ -254,7 +334,7 @@ async def test_get_chat_session_by_id_other_user_cannot_access_session(
         )
     )
 
-    found_chat_session = await repository.get_by_id(
+    found_chat_session = await repository.get_by_id_for_user(
         other_user.id,
         chat_session.id,
     )
@@ -612,7 +692,9 @@ async def test_update_chat_session_success(
     assert updated_chat_session.user_id == test_user.id
     assert updated_chat_session.title == "New session"
 
-    found_chat_session = await repository.get_by_id(test_user.id, chat_session.id)
+    found_chat_session = await repository.get_by_id_for_user(
+        test_user.id, chat_session.id
+    )
 
     assert found_chat_session is not None
     assert found_chat_session.user_id == test_user.id
@@ -746,7 +828,9 @@ async def test_delete_chat_session_hides_session_success(
 
     await repository.soft_delete(chat_session)
 
-    found_chat_session = await repository.get_by_id(test_user.id, chat_session.id)
+    found_chat_session = await repository.get_by_id_for_user(
+        test_user.id, chat_session.id
+    )
 
     assert found_chat_session is None
 
@@ -768,7 +852,9 @@ async def test_get_chat_session_soft_deleted_for_owner_not_found(
 
     await repository.soft_delete(chat_session)
 
-    found_chat_session = await repository.get_by_id(test_user.id, chat_session.id)
+    found_chat_session = await repository.get_by_id_for_user(
+        test_user.id, chat_session.id
+    )
 
     assert found_chat_session is None
 

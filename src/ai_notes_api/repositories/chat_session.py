@@ -37,12 +37,38 @@ class ChatSessionRepository(BaseRepository):
 
         return chat_session
 
-    async def get_by_id(
+    async def get_by_id(self, session_id: UUID) -> ChatSession | None:
+        """Return a chat session by its identifier.
+
+        Args:
+            session_id (UUID): Unique chat session identifier.
+
+        Returns:
+            ChatSession | None: Matching chat session if found and not
+            soft-deleted; otherwise, None.
+        """
+        stmt = (
+            select(ChatSession)
+            .where(ChatSession.id == session_id)
+            .where(ChatSession.deleted_at.is_(None))
+        )
+
+        result = await self.session.execute(stmt)
+        chat_session = result.scalar_one_or_none()
+
+        if chat_session is None:
+            logger.debug("Chat session not found: id={}", session_id)
+        else:
+            logger.debug("Chat session found: id={}", session_id)
+
+        return chat_session
+
+    async def get_by_id_for_user(
         self,
         user_id: UUID,
         session_id: UUID,
     ) -> ChatSession | None:
-        """Return a chat session by its identifier.
+        """Return a user's chat session by its identifier.
 
         Args:
             user_id (UUID): Unique identifier of the user who owns the chat session.
@@ -159,4 +185,4 @@ class ChatSessionRepository(BaseRepository):
 
         await self.session.flush()
 
-        logger.info("Chat session with messsages soft-deleted: id={}", chat_session.id)
+        logger.info("Chat session with messages soft-deleted: id={}", chat_session.id)

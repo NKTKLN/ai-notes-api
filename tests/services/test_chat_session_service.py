@@ -39,7 +39,7 @@ class FakeChatSessionRepository:
         self.chat_sessions[chat_session.id] = chat_session
         return chat_session
 
-    async def get_by_id(
+    async def get_by_id_for_user(
         self,
         user_id: UUID,
         session_id: UUID,
