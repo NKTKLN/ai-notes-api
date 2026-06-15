@@ -1,6 +1,6 @@
 """Tests for message repository."""
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -83,13 +83,14 @@ async def create_chat_session(
     return chat_session
 
 
-def create_message(
+def create_message(  # noqa: PLR0913
     *,
     session_id: UUID,
     content: str = "Test message",
     role: MessageRole = MessageRole.USER,
     provider: str | None = None,
     model_name: str | None = None,
+    created_at: datetime | None = None,
 ) -> Message:
     """Create a message instance for repository tests.
 
@@ -99,17 +100,24 @@ def create_message(
         role (MessageRole): Message role.
         provider (str | None): Optional AI provider name.
         model_name (str | None): Optional AI model name.
+        created_at (datetime | None): Optional explicit creation timestamp used to
+            control message ordering in tests.
 
     Returns:
         Message: Message model instance.
     """
-    return Message(
+    message = Message(
         session_id=session_id,
         role=role,
         content=content,
         provider=provider,
         model_name=model_name,
     )
+
+    if created_at is not None:
+        message.created_at = created_at
+
+    return message
 
 
 @pytest.mark.asyncio
@@ -621,6 +629,184 @@ async def test_get_messages_list_with_offset_success(
 
 
 @pytest.mark.asyncio
+async def test_get_last_messages_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test successful latest messages retrieval ordered by creation date."""
+    repository = MessageRepository(session=async_session)
+    chat_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    base = datetime.now(UTC)
+
+    await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="First message",
+            created_at=base,
+        )
+    )
+    await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Second message",
+            created_at=base + timedelta(seconds=1),
+        )
+    )
+
+    messages = await repository.get_last_messages(
+        test_user.id, chat_session.id, limit=10
+    )
+
+    assert len(messages) == 2
+    assert messages[0].content == "Second message"
+    assert messages[1].content == "First message"
+
+
+@pytest.mark.asyncio
+async def test_get_last_messages_empty_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test successful empty latest messages retrieval."""
+    repository = MessageRepository(session=async_session)
+    chat_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    messages = await repository.get_last_messages(
+        test_user.id, chat_session.id, limit=10
+    )
+
+    assert messages == []
+
+
+@pytest.mark.asyncio
+async def test_get_last_messages_respects_limit(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that latest messages retrieval returns only the most recent ones."""
+    repository = MessageRepository(session=async_session)
+    chat_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    base = datetime.now(UTC)
+
+    await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="First",
+            created_at=base,
+        )
+    )
+    await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Second",
+            created_at=base + timedelta(seconds=1),
+        )
+    )
+    await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Third",
+            created_at=base + timedelta(seconds=2),
+        )
+    )
+
+    messages = await repository.get_last_messages(
+        test_user.id, chat_session.id, limit=2
+    )
+
+    assert len(messages) == 2
+    assert messages[0].content == "Third"
+    assert messages[1].content == "Second"
+
+
+@pytest.mark.asyncio
+async def test_get_last_messages_excludes_deleted(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that latest messages retrieval excludes soft-deleted messages."""
+    repository = MessageRepository(session=async_session)
+    chat_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    base = datetime.now(UTC)
+
+    active_message = await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Active message",
+            created_at=base,
+        )
+    )
+    deleted_message = create_message(
+        session_id=chat_session.id,
+        content="Deleted message",
+        created_at=base + timedelta(seconds=1),
+    )
+    deleted_message.deleted_at = base + timedelta(seconds=2)
+    await repository.create(deleted_message)
+
+    messages = await repository.get_last_messages(
+        test_user.id, chat_session.id, limit=10
+    )
+
+    assert len(messages) == 1
+    assert messages[0].id == active_message.id
+
+
+@pytest.mark.asyncio
+async def test_get_last_messages_returns_only_user_owned_messages(
+    async_session: AsyncSession,
+    test_user: User,
+    other_user: User,
+) -> None:
+    """Test that latest messages retrieval is scoped to the requested user."""
+    repository = MessageRepository(session=async_session)
+    owned_session = await create_chat_session(async_session, user_id=test_user.id)
+    other_session = await create_chat_session(async_session, user_id=other_user.id)
+
+    owned_message = await repository.create(
+        create_message(session_id=owned_session.id, content="Owned message")
+    )
+    await repository.create(
+        create_message(session_id=other_session.id, content="Other message")
+    )
+
+    messages = await repository.get_last_messages(
+        test_user.id, owned_session.id, limit=10
+    )
+
+    assert len(messages) == 1
+    assert messages[0].id == owned_message.id
+
+
+@pytest.mark.asyncio
+async def test_get_last_messages_returns_only_requested_session(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that latest messages retrieval is scoped to the requested session."""
+    repository = MessageRepository(session=async_session)
+    first_session = await create_chat_session(async_session, user_id=test_user.id)
+    second_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    first_message = await repository.create(
+        create_message(session_id=first_session.id, content="First session message")
+    )
+    await repository.create(
+        create_message(session_id=second_session.id, content="Second session message")
+    )
+
+    messages = await repository.get_last_messages(
+        test_user.id, first_session.id, limit=10
+    )
+
+    assert len(messages) == 1
+    assert messages[0].id == first_message.id
+
+
+@pytest.mark.asyncio
 async def test_update_message_success(
     async_session: AsyncSession,
     test_user: User,
@@ -702,3 +888,113 @@ async def test_delete_message_preserves_database_row_success(
     assert stored_message is not None
     assert stored_message.id == message.id
     assert stored_message.deleted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_message_cascades_to_following_messages_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that soft deletion also removes later messages in the same session."""
+    repository = MessageRepository(session=async_session)
+    chat_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    base = datetime.now(UTC)
+
+    earlier_message = await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Earlier message",
+            created_at=base,
+        )
+    )
+    target_message = await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Target message",
+            created_at=base + timedelta(seconds=1),
+        )
+    )
+    later_message = await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Later message",
+            created_at=base + timedelta(seconds=2),
+        )
+    )
+
+    await repository.soft_delete(target_message)
+
+    assert await repository.get_by_id(earlier_message.id) is not None
+    assert await repository.get_by_id(target_message.id) is None
+    assert await repository.get_by_id(later_message.id) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_message_does_not_affect_other_sessions_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that cascading soft deletion is scoped to the message's session."""
+    repository = MessageRepository(session=async_session)
+    target_session = await create_chat_session(async_session, user_id=test_user.id)
+    other_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    base = datetime.now(UTC)
+
+    target_message = await repository.create(
+        create_message(
+            session_id=target_session.id,
+            content="Target message",
+            created_at=base,
+        )
+    )
+    other_message = await repository.create(
+        create_message(
+            session_id=other_session.id,
+            content="Later message in another session",
+            created_at=base + timedelta(seconds=1),
+        )
+    )
+
+    await repository.soft_delete(target_message)
+
+    assert await repository.get_by_id(target_message.id) is None
+    assert await repository.get_by_id(other_message.id) is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_message_keeps_already_deleted_timestamp_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that cascading deletion does not overwrite already-deleted messages."""
+    repository = MessageRepository(session=async_session)
+    chat_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    base = datetime.now(UTC)
+    already_deleted_at = base + timedelta(seconds=5)
+
+    target_message = await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Target message",
+            created_at=base,
+        )
+    )
+    later_deleted = create_message(
+        session_id=chat_session.id,
+        content="Already deleted later message",
+        created_at=base + timedelta(seconds=1),
+    )
+    later_deleted.deleted_at = already_deleted_at
+    later_deleted = await repository.create(later_deleted)
+
+    await repository.soft_delete(target_message)
+
+    result = await async_session.execute(
+        select(Message).where(Message.id == later_deleted.id)
+    )
+    stored_message = result.scalar_one()
+
+    assert stored_message.deleted_at == already_deleted_at

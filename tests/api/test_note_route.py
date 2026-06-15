@@ -166,7 +166,7 @@ def test_get_notes_success(
     note_service_mock: AsyncMock,
 ) -> None:
     """Test successful notes list retrieval."""
-    note_service_mock.get_list.return_value = [
+    note_service_mock.get_notes_list.return_value = [
         create_note_response(
             note_id=TEST_NOTE_ID_2,
             title="Second Test",
@@ -202,9 +202,9 @@ def test_get_notes_success(
     assert data["items"][1]["title"] == "First Test"
     assert data["items"][1]["source"] == ModelSource.MANUAL.value
 
-    note_service_mock.get_list.assert_awaited_once()
+    note_service_mock.get_notes_list.assert_awaited_once()
 
-    user_id, filters = note_service_mock.get_list.await_args.args
+    user_id, filters = note_service_mock.get_notes_list.await_args.args
 
     assert user_id == TEST_USER_ID
     assert filters.limit == 10
@@ -216,7 +216,7 @@ def test_get_notes_empty_success(
     note_service_mock: AsyncMock,
 ) -> None:
     """Test successful empty notes list retrieval."""
-    note_service_mock.get_list.return_value = []
+    note_service_mock.get_notes_list.return_value = []
 
     response = client.get("/notes?limit=10&offset=0")
 
@@ -229,9 +229,9 @@ def test_get_notes_empty_success(
     assert data["offset"] == 0
     assert data["total"] == 0
 
-    note_service_mock.get_list.assert_awaited_once()
+    note_service_mock.get_notes_list.assert_awaited_once()
 
-    user_id, filters = note_service_mock.get_list.await_args.args
+    user_id, filters = note_service_mock.get_notes_list.await_args.args
 
     assert user_id == TEST_USER_ID
     assert filters.limit == 10
@@ -243,7 +243,7 @@ def test_get_notes_with_filters_success(
     note_service_mock: AsyncMock,
 ) -> None:
     """Test successful notes list retrieval with filters."""
-    note_service_mock.get_list.return_value = [
+    note_service_mock.get_notes_list.return_value = [
         create_note_response(
             note_id=TEST_NOTE_ID,
             title="Matching Test",
@@ -282,9 +282,9 @@ def test_get_notes_with_filters_success(
     assert item["source"] == ModelSource.API.value
     assert item["model_name"] == "gpt-4o"
 
-    note_service_mock.get_list.assert_awaited_once()
+    note_service_mock.get_notes_list.assert_awaited_once()
 
-    user_id, filters = note_service_mock.get_list.await_args.args
+    user_id, filters = note_service_mock.get_notes_list.await_args.args
 
     assert user_id == TEST_USER_ID
     assert filters.source == ModelSource.API
@@ -421,15 +421,15 @@ def test_get_notes_uses_current_user_id(
     note_service_mock: AsyncMock,
 ) -> None:
     """Test that notes list retrieval passes current user id to service."""
-    note_service_mock.get_list.return_value = []
+    note_service_mock.get_notes_list.return_value = []
 
     response = client.get("/notes")
 
     assert response.status_code == 200
 
-    note_service_mock.get_list.assert_awaited_once()
+    note_service_mock.get_notes_list.assert_awaited_once()
 
-    user_id, _ = note_service_mock.get_list.await_args.args
+    user_id, _ = note_service_mock.get_notes_list.await_args.args
 
     assert user_id == TEST_USER_ID
 

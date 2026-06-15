@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from ai_notes_api.db.models import ChatSession, Message
 from ai_notes_api.repositories.base import BaseRepository
@@ -164,6 +164,46 @@ class MessageRepository(BaseRepository):
 
         return messages
 
+    async def get_last_messages(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        limit: int,
+    ) -> list[Message]:
+        """Return the latest messages from a chat session.
+
+        Args:
+            user_id (UUID): Unique identifier of the user who owns the chat session.
+            session_id (UUID): Unique chat session identifier.
+            limit (int): Maximum number of latest messages to return.
+
+        Returns:
+            list[Message]: List of latest non-deleted messages ordered by creation
+            date in descending order.
+        """
+        stmt = (
+            select(Message)
+            .join(ChatSession, ChatSession.id == Message.session_id)
+            .where(ChatSession.user_id == user_id)
+            .where(Message.session_id == session_id)
+            .where(Message.deleted_at.is_(None))
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+        )
+
+        result = await self.session.execute(stmt)
+        messages = list(result.scalars().all())
+
+        logger.debug(
+            "Latest messages fetched: count={}, user_id={}, session_id={}, limit={}",
+            len(messages),
+            user_id,
+            session_id,
+            limit,
+        )
+
+        return messages
+
     async def update(self, message: Message) -> Message:
         """Update an existing message in the database.
 
@@ -181,16 +221,26 @@ class MessageRepository(BaseRepository):
         return message
 
     async def soft_delete(self, message: Message) -> None:
-        """Soft-delete a message.
+        """Soft-delete a message and following messages in the same session.
 
-        Sets the message deletion timestamp instead of removing the row from
-        the database.
+        Sets the deletion timestamp for the given message and all later messages
+        in the same chat session instead of removing rows from the database.
 
         Args:
             message (Message): Message instance to soft-delete.
         """
-        message.deleted_at = datetime.now(UTC)
+        now = datetime.now(UTC)
+
+        message.deleted_at = now
+
+        await self.session.execute(
+            update(Message)
+            .where(Message.session_id == message.session_id)
+            .where(Message.deleted_at.is_(None))
+            .where(Message.created_at > message.created_at)
+            .values(deleted_at=now)
+        )
 
         await self.session.flush()
 
-        logger.info("Message soft-deleted: id={}", message.id)
+        logger.info("Message and following messages soft-deleted: id={}", message.id)
