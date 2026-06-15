@@ -10,6 +10,7 @@ from .chat_session import (
     ChatSessionResponseSchema,
     ChatSessionUpdateSchema,
 )
+from .completion import ChatCompletionResponseSchema
 from .error import ErrorResponseSchema
 from .message import (
     AssistantMessageCreateSchema,
@@ -31,6 +32,7 @@ from .user import UserCreateSchema, UserResponseSchema
 
 __all__ = [
     "AssistantMessageCreateSchema",
+    "ChatCompletionResponseSchema",
     "ChatSessionCreateSchema",
     "ChatSessionListQuerySchema",
     "ChatSessionListResponseSchema",
