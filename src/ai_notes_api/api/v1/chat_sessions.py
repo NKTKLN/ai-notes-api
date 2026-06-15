@@ -12,6 +12,7 @@ from loguru import logger
 from ai_notes_api.api.v1.dependencies import (
     get_chat_session_service,
     get_current_user,
+    get_message_service,
 )
 from ai_notes_api.db.models import User
 from ai_notes_api.schemas import (
@@ -21,9 +22,12 @@ from ai_notes_api.schemas import (
     ChatSessionResponseSchema,
     ChatSessionUpdateSchema,
     ErrorResponseSchema,
+    MessageListQuerySchema,
+    MessageListResponseSchema,
+    MessageResponseSchema,
     StatusResponseSchema,
 )
-from ai_notes_api.services import ChatSessionService
+from ai_notes_api.services import ChatSessionService, MessageService
 
 router = APIRouter(
     prefix="/chat/sessions",
@@ -224,3 +228,51 @@ async def delete_chat_session(
     await service.delete_chat_session(user.id, session_id)
 
     return StatusResponseSchema(status="deleted")
+
+
+@router.get(
+    "/{session_id}/messages",
+    summary="Get chat session messages",
+    description="Return a paginated list of messages for a chat session.",
+    response_model=MessageListResponseSchema,
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {
+            "model": ErrorResponseSchema,
+            "description": "Chat session not found",
+        },
+    },
+)
+async def get_chat_session_messages(
+    session_id: UUID,
+    filters: Annotated[
+        MessageListQuerySchema,
+        Depends(),
+    ],
+    user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[MessageService, Depends(get_message_service)],
+) -> MessageListResponseSchema:
+    """Return a paginated list of chat session messages.
+
+    Args:
+        session_id (UUID): Unique chat session identifier.
+        filters (MessageListQuerySchema): Filters and pagination parameters.
+        user (User): Current authenticated user.
+        service (MessageService): Message service dependency used to retrieve messages.
+
+    Returns:
+        MessageListResponseSchema: Paginated list of messages.
+
+    Raises:
+        ChatSessionNotFoundError: If no accessible chat session exists.
+    """
+    logger.info("Chat session messages retrieval requested: session_id={}", session_id)
+
+    messages = await service.get_messages_list(user.id, session_id, filters)
+
+    return MessageListResponseSchema(
+        items=[MessageResponseSchema.model_validate(message) for message in messages],
+        limit=filters.limit,
+        offset=filters.offset,
+        total=len(messages),
+    )
