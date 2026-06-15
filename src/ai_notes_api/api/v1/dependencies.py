@@ -18,10 +18,16 @@ from ai_notes_api.exceptions import InvalidTokenError
 from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
     ChatSessionRepository,
+    MessageRepository,
     NoteRepository,
     UserRepository,
 )
-from ai_notes_api.services import AuthService, ChatSessionService, NoteService
+from ai_notes_api.services import (
+    AuthService,
+    ChatSessionService,
+    MessageService,
+    NoteService,
+)
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/v1/auth/login",
@@ -126,6 +132,24 @@ def get_chat_session_service(
     repository = ChatSessionRepository(session)
 
     return ChatSessionService(repository)
+
+
+def get_message_service(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> MessageService:
+    """Provide a message service instance.
+
+    Args:
+        session (AsyncSession): Asynchronous database session provided by FastAPI
+            dependency injection.
+
+    Returns:
+        MessageService: Configured message service instance.
+    """
+    sessions = ChatSessionRepository(session)
+    messages = MessageRepository(session)
+
+    return MessageService(messages, sessions)
 
 
 def get_llm_client(request: Request) -> LLMClient:
