@@ -11,6 +11,13 @@ from .chat_session import (
     ChatSessionUpdateSchema,
 )
 from .error import ErrorResponseSchema
+from .message import (
+    AssistantMessageCreateSchema,
+    MessageListQuerySchema,
+    MessageListResponseSchema,
+    MessageResponseSchema,
+    UserMessageCreateSchema,
+)
 from .note import (
     NoteCreateSchema,
     NoteListQuerySchema,
@@ -23,12 +30,16 @@ from .token import TokenResponseSchema
 from .user import UserCreateSchema, UserResponseSchema
 
 __all__ = [
+    "AssistantMessageCreateSchema",
     "ChatSessionCreateSchema",
     "ChatSessionListQuerySchema",
     "ChatSessionListResponseSchema",
     "ChatSessionResponseSchema",
     "ChatSessionUpdateSchema",
     "ErrorResponseSchema",
+    "MessageListQuerySchema",
+    "MessageListResponseSchema",
+    "MessageResponseSchema",
     "NoteCreateSchema",
     "NoteListQuerySchema",
     "NoteListResponseSchema",
@@ -37,5 +48,6 @@ __all__ = [
     "StatusResponseSchema",
     "TokenResponseSchema",
     "UserCreateSchema",
+    "UserMessageCreateSchema",
     "UserResponseSchema",
 ]
