@@ -6,6 +6,7 @@ registration utilities.
 
 from .base import AppException, register_exception_handlers
 from .chat_session import ChatSessionNotFoundError
+from .message import MessageNotFoundError
 from .note import NoteNotFoundError
 from .token import InvalidTokenError
 from .user import (
@@ -21,6 +22,7 @@ __all__ = [
     "InactiveUserError",
     "InvalidCredentialsError",
     "InvalidTokenError",
+    "MessageNotFoundError",
     "NoteNotFoundError",
     "UserAlreadyExistsError",
     "UserNotFoundError",
