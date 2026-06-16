@@ -8,7 +8,7 @@ from uuid import UUID
 
 from ai_notes_api.db.models import ModelSource
 from ai_notes_api.schemas import NoteListQuerySchema
-from ai_notes_api.services import NoteService
+from ai_notes_api.services.note import NoteService
 
 
 def make_search_notes_tool(notes_service: NoteService, user_id: UUID) -> dict[str, Any]:
