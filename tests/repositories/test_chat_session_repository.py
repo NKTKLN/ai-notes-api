@@ -11,13 +11,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 try:
     from ai_notes_api.db.models import (
         ChatSession,
+        ChatSessionGenerationStatus,
         GenerationJob,
         GenerationJobStatus,
         Message,
         User,
     )
 except ImportError:
-    from ai_notes_api.db.models.chat_session import ChatSession
+    from ai_notes_api.db.models.chat_session import (
+        ChatSession,
+        ChatSessionGenerationStatus,
+    )
     from ai_notes_api.db.models.generation_job import (
         GenerationJob,
         GenerationJobStatus,
@@ -1054,3 +1058,292 @@ async def test_delete_chat_session_does_not_cancel_other_session_jobs_success(
 
     assert stored_deleted_session_job.status == GenerationJobStatus.CANCELLED
     assert stored_active_session_job.status == GenerationJobStatus.QUEUED
+
+
+@pytest.mark.asyncio
+async def test_acquire_generation_lock_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test successful generation lock acquisition on an idle chat session."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(create_chat_session(user_id=test_user.id))
+    generation_id = uuid4()
+
+    acquired = await repository.acquire_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=generation_id,
+    )
+
+    assert acquired is True
+
+    await async_session.refresh(chat_session)
+
+    assert chat_session.generation_status == ChatSessionGenerationStatus.RUNNING
+    assert chat_session.generation_id == generation_id
+    assert chat_session.generation_started_at is not None
+
+
+@pytest.mark.asyncio
+async def test_acquire_generation_lock_fails_when_already_locked(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that acquiring a lock fails when the session is already running."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(create_chat_session(user_id=test_user.id))
+    first_generation_id = uuid4()
+    second_generation_id = uuid4()
+
+    assert await repository.acquire_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=first_generation_id,
+    )
+
+    acquired = await repository.acquire_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=second_generation_id,
+    )
+
+    assert acquired is False
+
+    await async_session.refresh(chat_session)
+
+    assert chat_session.generation_id == first_generation_id
+
+
+@pytest.mark.asyncio
+async def test_acquire_generation_lock_other_user_cannot_lock(
+    async_session: AsyncSession,
+    test_user: User,
+    other_user: User,
+) -> None:
+    """Test that another user cannot acquire the lock of a chat session."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(create_chat_session(user_id=test_user.id))
+
+    acquired = await repository.acquire_generation_lock(
+        session_id=chat_session.id,
+        user_id=other_user.id,
+        generation_id=uuid4(),
+    )
+
+    assert acquired is False
+
+    await async_session.refresh(chat_session)
+
+    assert chat_session.generation_status == ChatSessionGenerationStatus.IDLE
+    assert chat_session.generation_id is None
+
+
+@pytest.mark.asyncio
+async def test_acquire_generation_lock_soft_deleted_session_cannot_lock(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that a soft-deleted chat session cannot be locked."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(create_chat_session(user_id=test_user.id))
+
+    await repository.soft_delete(chat_session)
+
+    acquired = await repository.acquire_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=uuid4(),
+    )
+
+    assert acquired is False
+
+
+@pytest.mark.asyncio
+async def test_release_generation_lock_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test successful generation lock release by the owning generation."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(create_chat_session(user_id=test_user.id))
+    generation_id = uuid4()
+
+    await repository.acquire_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=generation_id,
+    )
+
+    await repository.release_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=generation_id,
+    )
+
+    await async_session.refresh(chat_session)
+
+    assert chat_session.generation_status == ChatSessionGenerationStatus.IDLE
+    assert chat_session.generation_id is None
+    assert chat_session.generation_started_at is None
+
+
+@pytest.mark.asyncio
+async def test_release_generation_lock_other_generation_is_noop(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that releasing with a non-owning generation does not unlock."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(create_chat_session(user_id=test_user.id))
+    generation_id = uuid4()
+
+    await repository.acquire_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=generation_id,
+    )
+
+    await repository.release_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=uuid4(),
+    )
+
+    await async_session.refresh(chat_session)
+
+    assert chat_session.generation_status == ChatSessionGenerationStatus.RUNNING
+    assert chat_session.generation_id == generation_id
+
+
+@pytest.mark.asyncio
+async def test_release_generation_lock_other_user_is_noop(
+    async_session: AsyncSession,
+    test_user: User,
+    other_user: User,
+) -> None:
+    """Test that another user cannot release a chat session lock."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(create_chat_session(user_id=test_user.id))
+    generation_id = uuid4()
+
+    await repository.acquire_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=generation_id,
+    )
+
+    await repository.release_generation_lock(
+        session_id=chat_session.id,
+        user_id=other_user.id,
+        generation_id=generation_id,
+    )
+
+    await async_session.refresh(chat_session)
+
+    assert chat_session.generation_status == ChatSessionGenerationStatus.RUNNING
+    assert chat_session.generation_id == generation_id
+
+
+@pytest.mark.asyncio
+async def test_has_generation_lock_true_for_owning_generation(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that has_generation_lock returns True for the owning generation."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(create_chat_session(user_id=test_user.id))
+    generation_id = uuid4()
+
+    await repository.acquire_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=generation_id,
+    )
+
+    owns_lock = await repository.has_generation_lock(
+        user_id=test_user.id,
+        session_id=chat_session.id,
+        generation_id=generation_id,
+    )
+
+    assert owns_lock is True
+
+
+@pytest.mark.asyncio
+async def test_has_generation_lock_false_when_idle(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that has_generation_lock returns False for an idle chat session."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(create_chat_session(user_id=test_user.id))
+
+    owns_lock = await repository.has_generation_lock(
+        user_id=test_user.id,
+        session_id=chat_session.id,
+        generation_id=uuid4(),
+    )
+
+    assert owns_lock is False
+
+
+@pytest.mark.asyncio
+async def test_has_generation_lock_false_for_other_generation(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that has_generation_lock returns False for a non-owning generation."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(create_chat_session(user_id=test_user.id))
+
+    await repository.acquire_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=uuid4(),
+    )
+
+    owns_lock = await repository.has_generation_lock(
+        user_id=test_user.id,
+        session_id=chat_session.id,
+        generation_id=uuid4(),
+    )
+
+    assert owns_lock is False
+
+
+@pytest.mark.asyncio
+async def test_has_generation_lock_false_for_other_user(
+    async_session: AsyncSession,
+    test_user: User,
+    other_user: User,
+) -> None:
+    """Test that has_generation_lock is scoped to the owning user."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(create_chat_session(user_id=test_user.id))
+    generation_id = uuid4()
+
+    await repository.acquire_generation_lock(
+        session_id=chat_session.id,
+        user_id=test_user.id,
+        generation_id=generation_id,
+    )
+
+    owns_lock = await repository.has_generation_lock(
+        user_id=other_user.id,
+        session_id=chat_session.id,
+        generation_id=generation_id,
+    )
+
+    assert owns_lock is False
