@@ -12,6 +12,7 @@ from sqlalchemy import select, update
 
 from ai_notes_api.db.models import (
     ChatSession,
+    ChatSessionGenerationStatus,
     GenerationJob,
     GenerationJobStatus,
     Message,
@@ -169,11 +170,11 @@ class ChatSessionRepository(BaseRepository):
         return chat_session
 
     async def soft_delete(self, chat_session: ChatSession) -> None:
-        """Soft-delete a chat session and its messages.
+        """Soft-delete a chat session and its related records.
 
         Sets the chat session and related message deletion timestamps instead of
-        removing rows from the database. Active generation jobs of the chat session
-        are marked as cancelled.
+        removing rows from the database. Active generation jobs of the chat
+        session are marked as cancelled.
 
         Args:
             chat_session (ChatSession): Chat session instance to soft-delete.
@@ -181,6 +182,9 @@ class ChatSessionRepository(BaseRepository):
         now = datetime.now(UTC)
 
         chat_session.deleted_at = now
+        chat_session.generation_status = ChatSessionGenerationStatus.IDLE
+        chat_session.generation_id = None
+        chat_session.generation_started_at = None
 
         await self.session.execute(
             update(Message)
@@ -194,12 +198,132 @@ class ChatSessionRepository(BaseRepository):
             .where(GenerationJob.session_id == chat_session.id)
             .where(
                 GenerationJob.status.in_(
-                    (GenerationJobStatus.QUEUED, GenerationJobStatus.RUNNING)
+                    (
+                        GenerationJobStatus.QUEUED,
+                        GenerationJobStatus.RUNNING,
+                    )
                 )
             )
-            .values(status=GenerationJobStatus.CANCELLED, finished_at=now)
+            .values(
+                status=GenerationJobStatus.CANCELLED,
+                finished_at=now,
+            )
         )
 
         await self.session.flush()
 
-        logger.info("Chat session with messages soft-deleted: id={}", chat_session.id)
+        logger.info(
+            "Chat session with related records soft-deleted: id={}",
+            chat_session.id,
+        )
+
+    async def acquire_generation_lock(
+        self,
+        session_id: UUID,
+        user_id: UUID,
+        generation_id: UUID,
+    ) -> bool:
+        """Acquire a generation lock for a chat session.
+
+        Args:
+            session_id (UUID): Unique chat session identifier.
+            user_id (UUID): Unique identifier of the user who owns the chat session.
+            generation_id (UUID): Unique generation job identifier.
+
+        Returns:
+            bool: True if the lock was acquired; otherwise, False.
+        """
+        stmt = (
+            update(ChatSession)
+            .where(ChatSession.id == session_id)
+            .where(ChatSession.user_id == user_id)
+            .where(ChatSession.generation_status == ChatSessionGenerationStatus.IDLE)
+            .where(ChatSession.deleted_at.is_(None))
+            .values(
+                generation_status=ChatSessionGenerationStatus.RUNNING,
+                generation_id=generation_id,
+                generation_started_at=datetime.now(UTC),
+            )
+            .returning(ChatSession.id)
+        )
+
+        result = await self.session.execute(stmt)
+        row = result.scalar_one_or_none()
+
+        if row is None:
+            logger.debug(
+                "Generation lock was not acquired: session_id={}, generation_id={}",
+                session_id,
+                generation_id,
+            )
+        else:
+            logger.info(
+                "Generation lock acquired: session_id={}, generation_id={}",
+                session_id,
+                generation_id,
+            )
+
+        return row is not None
+
+    async def release_generation_lock(
+        self,
+        session_id: UUID,
+        user_id: UUID,
+        generation_id: UUID,
+    ) -> None:
+        """Release a generation lock for a chat session.
+
+        Args:
+            session_id (UUID): Unique chat session identifier.
+            user_id (UUID): Unique identifier of the user who owns the chat session.
+            generation_id (UUID): Unique generation job identifier that owns the lock.
+        """
+        stmt = (
+            update(ChatSession)
+            .where(ChatSession.id == session_id)
+            .where(ChatSession.user_id == user_id)
+            .where(ChatSession.generation_id == generation_id)
+            .where(ChatSession.deleted_at.is_(None))
+            .values(
+                generation_status=ChatSessionGenerationStatus.IDLE,
+                generation_id=None,
+                generation_started_at=None,
+            )
+        )
+
+        await self.session.execute(stmt)
+
+        logger.info(
+            "Generation lock released: session_id={}, generation_id={}",
+            session_id,
+            generation_id,
+        )
+
+    async def has_generation_lock(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        generation_id: UUID,
+    ) -> bool:
+        """Return whether a generation job owns the chat session lock.
+
+        Args:
+            user_id (UUID): Unique identifier of the user who owns the chat session.
+            session_id (UUID): Unique chat session identifier.
+            generation_id (UUID): Unique generation job identifier.
+
+        Returns:
+            bool: True if the generation job owns the lock; otherwise, False.
+        """
+        stmt = (
+            select(ChatSession.id)
+            .where(ChatSession.id == session_id)
+            .where(ChatSession.user_id == user_id)
+            .where(ChatSession.generation_id == generation_id)
+            .where(ChatSession.generation_status == ChatSessionGenerationStatus.RUNNING)
+            .where(ChatSession.deleted_at.is_(None))
+        )
+
+        result = await self.session.execute(stmt)
+
+        return result.scalar_one_or_none() is not None
