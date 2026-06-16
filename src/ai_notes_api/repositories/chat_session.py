@@ -10,7 +10,12 @@ from uuid import UUID
 from loguru import logger
 from sqlalchemy import select, update
 
-from ai_notes_api.db.models import ChatSession, Message
+from ai_notes_api.db.models import (
+    ChatSession,
+    GenerationJob,
+    GenerationJobStatus,
+    Message,
+)
 from ai_notes_api.repositories.base import BaseRepository
 from ai_notes_api.repositories.filters import ChatSessionListFilters
 
@@ -167,7 +172,8 @@ class ChatSessionRepository(BaseRepository):
         """Soft-delete a chat session and its messages.
 
         Sets the chat session and related message deletion timestamps instead of
-        removing rows from the database.
+        removing rows from the database. Active generation jobs of the chat session
+        are marked as cancelled.
 
         Args:
             chat_session (ChatSession): Chat session instance to soft-delete.
@@ -181,6 +187,17 @@ class ChatSessionRepository(BaseRepository):
             .where(Message.session_id == chat_session.id)
             .where(Message.deleted_at.is_(None))
             .values(deleted_at=now)
+        )
+
+        await self.session.execute(
+            update(GenerationJob)
+            .where(GenerationJob.session_id == chat_session.id)
+            .where(
+                GenerationJob.status.in_(
+                    (GenerationJobStatus.QUEUED, GenerationJobStatus.RUNNING)
+                )
+            )
+            .values(status=GenerationJobStatus.CANCELLED, finished_at=now)
         )
 
         await self.session.flush()

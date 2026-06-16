@@ -6,7 +6,7 @@ queries.
 
 from dataclasses import dataclass
 
-from ai_notes_api.db.models import MessageRole, ModelSource
+from ai_notes_api.db.models import GenerationJobStatus, MessageRole, ModelSource
 
 
 @dataclass(slots=True, frozen=True)
@@ -66,3 +66,22 @@ class MessageListFilters:
     role: MessageRole | None = None
     model_name: str | None = None
     provider: str | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class GenerationJobListFilters:
+    """Filters used to fetch a list of generation jobs.
+
+    Attributes:
+        limit (int): Maximum number of generation jobs to return.
+        offset (int): Number of generation jobs to skip before returning results.
+        search (str | None): Optional text used to search generation jobs by input
+            message.
+        status (GenerationJobStatus | None): Optional generation job status used to
+            filter results.
+    """
+
+    limit: int = 20
+    offset: int = 0
+    search: str | None = None
+    status: GenerationJobStatus | None = None
