@@ -15,6 +15,7 @@ from .generation_job import GenerationJobRepository
 from .message import MessageRepository
 from .note import NoteRepository
 from .user import UserRepository
+from .chat_memory import ChatMemoryRepository
 
 __all__ = [
     "BaseRepository",
@@ -27,4 +28,5 @@ __all__ = [
     "NoteListFilters",
     "NoteRepository",
     "UserRepository",
+    "ChatMemoryRepository",
 ]
