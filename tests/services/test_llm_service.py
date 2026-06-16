@@ -16,6 +16,7 @@ from ai_notes_api.schemas import (
     AssistantMessageCreateSchema,
     UserMessageCreateSchema,
 )
+from ai_notes_api.services.chat_session import ChatSessionService
 from ai_notes_api.services.llm_service import LLMService
 from ai_notes_api.services.message import MessageService
 
@@ -84,6 +85,52 @@ class FakeMessageService:
         )
 
 
+class FakeChatSessionService:
+    """Fake chat session service recording lock operations for LLM testing."""
+
+    def __init__(self) -> None:
+        """Initialize the fake chat session service."""
+        self.ensure_session_owner_called = False
+        self.acquired_generation_id: UUID | None = None
+        self.released_generation_id: UUID | None = None
+        self.ensured_lock_owner_id: UUID | None = None
+
+    async def ensure_session_owner(
+        self,
+        user_id: UUID,  # noqa: ARG002
+        session_id: UUID,  # noqa: ARG002
+    ) -> None:
+        """Record that the session owner check was performed."""
+        self.ensure_session_owner_called = True
+
+    async def acquire_generation_lock(
+        self,
+        user_id: UUID,  # noqa: ARG002
+        session_id: UUID,  # noqa: ARG002
+        generation_id: UUID,
+    ) -> None:
+        """Record the acquired generation lock."""
+        self.acquired_generation_id = generation_id
+
+    async def release_generation_lock(
+        self,
+        user_id: UUID,  # noqa: ARG002
+        session_id: UUID,  # noqa: ARG002
+        generation_id: UUID,
+    ) -> None:
+        """Record the released generation lock."""
+        self.released_generation_id = generation_id
+
+    async def ensure_generation_lock_owner(
+        self,
+        user_id: UUID,  # noqa: ARG002
+        session_id: UUID,  # noqa: ARG002
+        generation_id: UUID,
+    ) -> None:
+        """Record the generation lock ownership check."""
+        self.ensured_lock_owner_id = generation_id
+
+
 class FakeLLMClient:
     """Fake LLM client returning preconfigured responses and stream events."""
 
@@ -117,9 +164,11 @@ def _build_service() -> tuple[FakeLLMClient, FakeMessageService, LLMService]:
     """Build an LLM service wired with fakes."""
     client = FakeLLMClient()
     messages = FakeMessageService()
+    sessions = FakeChatSessionService()
 
     service = LLMService(
         client=cast(LLMClient, client),
+        sessions=cast(ChatSessionService, sessions),
         messages=cast(MessageService, messages),
     )
 
@@ -135,10 +184,12 @@ def _raw_metadata() -> SimpleNamespace:
     """Return a raw provider response carrying token and model metadata."""
     return SimpleNamespace(
         provider="openai",
-        model_name="gpt-4",
-        prompt_tokens=10,
-        completion_tokens=20,
-        total_tokens=30,
+        model="gpt-4",
+        usage=SimpleNamespace(
+            input_tokens=10,
+            output_tokens=20,
+            total_tokens=30,
+        ),
     )
 
 

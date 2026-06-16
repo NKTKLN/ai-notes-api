@@ -36,6 +36,16 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
@@ -49,6 +59,9 @@ jobs:
 
       OPEN_AI_API_KEY: "sk-or-v1-some-key"
       OPEN_AI_MODEL: "gpt-5.1-chat"
+
+      CELERY_BROKER_URL: redis://localhost:6379/0
+      CELERY_RESULT_BACKEND: redis://localhost:6379/0
 
     steps:
       - uses: actions/checkout@v4

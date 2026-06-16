@@ -16,6 +16,7 @@ from ai_notes_api.db.models.datetime import SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_session import ChatSession
+    from ai_notes_api.db.models.generation_job import GenerationJob
 
 
 class MessageRole(StrEnum):
@@ -103,4 +104,8 @@ class Message(Base, TimestampMixin, SoftDeleteMixin):
 
     total_tokens: Mapped[int | None] = mapped_column(
         nullable=True,
+    )
+
+    generation_job: Mapped["GenerationJob | None"] = relationship(
+        back_populates="output_message",
     )

@@ -14,6 +14,7 @@ from ai_notes_api.db.models.datetime import TimestampMixin
 
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_session import ChatSession
+    from ai_notes_api.db.models.generation_job import GenerationJob
     from ai_notes_api.db.models.note import Note
 
 
@@ -70,6 +71,11 @@ class User(Base, TimestampMixin):
     )
 
     chat_sessions: Mapped[list["ChatSession"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    generation_jobs: Mapped[list["GenerationJob"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

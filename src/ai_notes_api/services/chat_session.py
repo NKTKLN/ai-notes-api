@@ -5,8 +5,12 @@ This module provides business logic for working with chat sessions.
 
 from uuid import UUID
 
-from ai_notes_api.db.models import ChatSession
-from ai_notes_api.exceptions import ChatSessionNotFoundError
+from ai_notes_api.db.models import ChatSession, ChatSessionGenerationStatus
+from ai_notes_api.exceptions import (
+    ChatSessionNotFoundError,
+    GenerationInProgressError,
+    GenerationNotFoundError,
+)
 from ai_notes_api.repositories import ChatSessionListFilters, ChatSessionRepository
 from ai_notes_api.schemas import (
     ChatSessionCreateSchema,
@@ -152,3 +156,111 @@ class ChatSessionService:
             raise ChatSessionNotFoundError()
 
         await self.repository.soft_delete(chat_session)
+
+    async def acquire_generation_lock(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        generation_id: UUID,
+    ) -> None:
+        """Acquire a generation lock for a chat session.
+
+        Args:
+            user_id (UUID): Unique identifier of the user who owns the chat session.
+            session_id (UUID): Unique chat session identifier.
+            generation_id (UUID): Unique generation job identifier.
+
+        Raises:
+            GenerationInProgressError: If generation is already in progress.
+        """
+        lock_acquired = await self.repository.acquire_generation_lock(
+            user_id=user_id,
+            session_id=session_id,
+            generation_id=generation_id,
+        )
+
+        if not lock_acquired:
+            raise GenerationInProgressError()
+
+    async def release_generation_lock(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        generation_id: UUID,
+    ) -> None:
+        """Release a generation lock for a chat session.
+
+        Args:
+            user_id (UUID): Unique identifier of the user who owns the chat session.
+            session_id (UUID): Unique chat session identifier.
+            generation_id (UUID): Unique generation job identifier that owns the lock.
+        """
+        await self.repository.release_generation_lock(
+            user_id=user_id,
+            session_id=session_id,
+            generation_id=generation_id,
+        )
+
+    async def ensure_session_owner(self, user_id: UUID, session_id: UUID) -> None:
+        """Ensure that a chat session belongs to a user.
+
+        Args:
+            user_id (UUID): Unique identifier of the user who should own the
+                chat session.
+            session_id (UUID): Unique chat session identifier.
+
+        Raises:
+            ChatSessionNotFoundError: If no accessible chat session exists.
+        """
+        chat_session = await self.repository.get_by_id_for_user(
+            user_id,
+            session_id,
+        )
+
+        if chat_session is None:
+            raise ChatSessionNotFoundError()
+
+    async def ensure_no_active_job(self, user_id: UUID, session_id: UUID) -> None:
+        """Ensure that no active generation job exists for a chat session.
+
+        Args:
+            user_id (UUID): Unique identifier of the user who owns the session.
+            session_id (UUID): Unique chat session identifier.
+
+        Raises:
+            ChatSessionNotFoundError: If no accessible chat session exists.
+            GenerationInProgressError: If a QUEUED or RUNNING job already exists.
+        """
+        chat_session = await self.repository.get_by_id_for_user(user_id, session_id)
+
+        if chat_session is None:
+            raise ChatSessionNotFoundError()
+
+        if chat_session.generation_status == ChatSessionGenerationStatus.RUNNING:
+            raise GenerationInProgressError()
+
+    async def ensure_generation_lock_owner(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        generation_id: UUID,
+    ) -> None:
+        """Ensure that a generation job owns the chat session lock.
+
+        Args:
+            user_id (UUID): Unique identifier of the user who owns the chat
+                session.
+            session_id (UUID): Unique chat session identifier.
+            generation_id (UUID): Unique generation job identifier.
+
+        Raises:
+            GenerationNotFoundError: If the generation job does not own the lock.
+        """
+        owns_lock = await self.repository.has_generation_lock(
+            user_id=user_id,
+            session_id=session_id,
+            generation_id=generation_id,
+        )
+
+        if not owns_lock:
+            raise GenerationNotFoundError()

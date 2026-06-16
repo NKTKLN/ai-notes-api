@@ -21,6 +21,8 @@ dependencies = [
     "python-multipart>=0.0.32",
     "openai>=2.41.1",
     "sse-starlette>=3.4.4",
+    "celery>=5.6.3",
+    "redis>=8.0.0",
 ]
 
 [dependency-groups]
@@ -70,6 +72,10 @@ line-length = 88
 target-version = "py313"
 extend-include = ["*.ipynb"]
 exclude = [".git", "__pycache__", "build", "dist", ".venv", "tmp", "alembic"]
+
+[[tool.mypy.overrides]]
+module = ["celery.*"]
+ignore_missing_imports = true
 
 [tool.ruff.format]
 quote-style = "double"
@@ -128,7 +134,7 @@ filterwarnings = [
 known_first_party = ["ai_notes_api"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["uvicorn", "asyncpg", "greenlet", "bcrypt", "python-multipart"]
+DEP002 = ["uvicorn", "asyncpg", "greenlet", "bcrypt", "python-multipart", "redis"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"

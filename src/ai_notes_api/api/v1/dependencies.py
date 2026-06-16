@@ -18,6 +18,7 @@ from ai_notes_api.exceptions import InvalidTokenError
 from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
     ChatSessionRepository,
+    GenerationJobRepository,
     MessageRepository,
     NoteRepository,
     UserRepository,
@@ -25,6 +26,7 @@ from ai_notes_api.repositories import (
 from ai_notes_api.services import (
     AuthService,
     ChatSessionService,
+    JobService,
     LLMService,
     MessageService,
     NoteService,
@@ -181,6 +183,26 @@ def get_llm_service(
     """
     messages = MessageRepository(session)
     sessions = ChatSessionRepository(session)
+    sessions_service = ChatSessionService(sessions)
     message_service = MessageService(messages, sessions)
 
-    return LLMService(client, message_service)
+    return LLMService(client, sessions_service, message_service)
+
+
+def get_job_service(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> JobService:
+    """Provide a generation job service instance.
+
+    Args:
+        session (AsyncSession): Asynchronous database session provided by FastAPI
+            dependency injection.
+
+    Returns:
+        JobService: Configured generation job service instance.
+    """
+    jobs = GenerationJobRepository(session)
+    sessions = ChatSessionRepository(session)
+    sessions_service = ChatSessionService(sessions)
+
+    return JobService(jobs, sessions_service)

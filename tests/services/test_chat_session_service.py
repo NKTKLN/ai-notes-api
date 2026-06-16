@@ -6,8 +6,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from ai_notes_api.db.models import ChatSession
-from ai_notes_api.exceptions import ChatSessionNotFoundError
+from ai_notes_api.db.models import ChatSession, ChatSessionGenerationStatus
+from ai_notes_api.exceptions import (
+    ChatSessionNotFoundError,
+    GenerationInProgressError,
+    GenerationNotFoundError,
+)
 from ai_notes_api.repositories import ChatSessionListFilters
 from ai_notes_api.repositories.chat_session import ChatSessionRepository
 from ai_notes_api.schemas import (
@@ -22,6 +26,8 @@ TEST_USER_ID_2 = UUID("44444444-4444-4444-4444-444444444444")
 TEST_SESSION_ID = UUID("22222222-2222-2222-2222-222222222222")
 TEST_SESSION_ID_2 = UUID("33333333-3333-3333-3333-333333333333")
 TEST_SESSION_ID_3 = UUID("55555555-5555-5555-5555-555555555555")
+TEST_GENERATION_ID = UUID("66666666-6666-6666-6666-666666666666")
+TEST_GENERATION_ID_2 = UUID("77777777-7777-7777-7777-777777777777")
 
 
 class FakeChatSessionRepository:
@@ -93,6 +99,67 @@ class FakeChatSessionRepository:
             raise ChatSessionNotFoundError()
 
         stored_chat_session.deleted_at = datetime.now(UTC)
+
+    async def acquire_generation_lock(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        generation_id: UUID,
+    ) -> bool:
+        """Acquire a generation lock for an idle chat session."""
+        chat_session = self.chat_sessions.get(session_id)
+
+        if (
+            chat_session is None
+            or chat_session.user_id != user_id
+            or chat_session.deleted_at is not None
+            or chat_session.generation_status != ChatSessionGenerationStatus.IDLE
+        ):
+            return False
+
+        chat_session.generation_status = ChatSessionGenerationStatus.RUNNING
+        chat_session.generation_id = generation_id
+        chat_session.generation_started_at = datetime.now(UTC)
+
+        return True
+
+    async def release_generation_lock(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        generation_id: UUID,
+    ) -> None:
+        """Release a generation lock held by the given generation."""
+        chat_session = self.chat_sessions.get(session_id)
+
+        if (
+            chat_session is None
+            or chat_session.user_id != user_id
+            or chat_session.deleted_at is not None
+            or chat_session.generation_id != generation_id
+        ):
+            return
+
+        chat_session.generation_status = ChatSessionGenerationStatus.IDLE
+        chat_session.generation_id = None
+        chat_session.generation_started_at = None
+
+    async def has_generation_lock(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        generation_id: UUID,
+    ) -> bool:
+        """Return whether a generation job owns the chat session lock."""
+        chat_session = self.chat_sessions.get(session_id)
+
+        return (
+            chat_session is not None
+            and chat_session.user_id == user_id
+            and chat_session.deleted_at is None
+            and chat_session.generation_id == generation_id
+            and chat_session.generation_status == ChatSessionGenerationStatus.RUNNING
+        )
 
 
 @pytest.mark.asyncio
@@ -281,3 +348,214 @@ async def test_get_chat_sessions_list_success() -> None:
     assert len(chat_sessions) == 1
     assert chat_sessions[0].title == "First Test Session"
     assert chat_sessions[0].user_id == TEST_USER_ID
+
+
+def _store_chat_session(
+    repository: FakeChatSessionRepository,
+    *,
+    session_id: UUID = TEST_SESSION_ID,
+    user_id: UUID = TEST_USER_ID,
+    generation_status: ChatSessionGenerationStatus = ChatSessionGenerationStatus.IDLE,
+    generation_id: UUID | None = None,
+) -> ChatSession:
+    """Persist a chat session with explicit generation lock state."""
+    chat_session = ChatSession(
+        id=session_id,
+        user_id=user_id,
+        title="Test session",
+        generation_status=generation_status,
+        generation_id=generation_id,
+    )
+
+    repository.chat_sessions[session_id] = chat_session
+
+    return chat_session
+
+
+@pytest.mark.asyncio
+async def test_acquire_generation_lock_success() -> None:
+    """Test that the service acquires a generation lock on an idle session."""
+    repository = FakeChatSessionRepository()
+    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+
+    _store_chat_session(repository)
+
+    await service.acquire_generation_lock(
+        user_id=TEST_USER_ID,
+        session_id=TEST_SESSION_ID,
+        generation_id=TEST_GENERATION_ID,
+    )
+
+    stored = repository.chat_sessions[TEST_SESSION_ID]
+
+    assert stored.generation_status == ChatSessionGenerationStatus.RUNNING
+    assert stored.generation_id == TEST_GENERATION_ID
+
+
+@pytest.mark.asyncio
+async def test_acquire_generation_lock_raises_when_in_progress() -> None:
+    """Test that acquiring a lock raises when a generation is already running."""
+    repository = FakeChatSessionRepository()
+    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+
+    _store_chat_session(
+        repository,
+        generation_status=ChatSessionGenerationStatus.RUNNING,
+        generation_id=TEST_GENERATION_ID,
+    )
+
+    with pytest.raises(GenerationInProgressError):
+        await service.acquire_generation_lock(
+            user_id=TEST_USER_ID,
+            session_id=TEST_SESSION_ID,
+            generation_id=TEST_GENERATION_ID_2,
+        )
+
+    assert repository.chat_sessions[TEST_SESSION_ID].generation_id == TEST_GENERATION_ID
+
+
+@pytest.mark.asyncio
+async def test_release_generation_lock_success() -> None:
+    """Test that the service releases a generation lock it owns."""
+    repository = FakeChatSessionRepository()
+    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+
+    _store_chat_session(
+        repository,
+        generation_status=ChatSessionGenerationStatus.RUNNING,
+        generation_id=TEST_GENERATION_ID,
+    )
+
+    await service.release_generation_lock(
+        user_id=TEST_USER_ID,
+        session_id=TEST_SESSION_ID,
+        generation_id=TEST_GENERATION_ID,
+    )
+
+    stored = repository.chat_sessions[TEST_SESSION_ID]
+
+    assert stored.generation_status == ChatSessionGenerationStatus.IDLE
+    assert stored.generation_id is None
+
+
+@pytest.mark.asyncio
+async def test_release_generation_lock_other_generation_is_noop() -> None:
+    """Test that releasing with a non-owning generation does not unlock."""
+    repository = FakeChatSessionRepository()
+    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+
+    _store_chat_session(
+        repository,
+        generation_status=ChatSessionGenerationStatus.RUNNING,
+        generation_id=TEST_GENERATION_ID,
+    )
+
+    await service.release_generation_lock(
+        user_id=TEST_USER_ID,
+        session_id=TEST_SESSION_ID,
+        generation_id=TEST_GENERATION_ID_2,
+    )
+
+    stored = repository.chat_sessions[TEST_SESSION_ID]
+
+    assert stored.generation_status == ChatSessionGenerationStatus.RUNNING
+    assert stored.generation_id == TEST_GENERATION_ID
+
+
+@pytest.mark.asyncio
+async def test_ensure_session_owner_success() -> None:
+    """Test that ensure_session_owner passes for the owning user."""
+    repository = FakeChatSessionRepository()
+    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+
+    _store_chat_session(repository)
+
+    await service.ensure_session_owner(TEST_USER_ID, TEST_SESSION_ID)
+
+
+@pytest.mark.asyncio
+async def test_ensure_session_owner_not_found() -> None:
+    """Test that ensure_session_owner raises when the session is missing."""
+    repository = FakeChatSessionRepository()
+    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+
+    with pytest.raises(ChatSessionNotFoundError):
+        await service.ensure_session_owner(TEST_USER_ID, uuid4())
+
+
+@pytest.mark.asyncio
+async def test_ensure_session_owner_other_user() -> None:
+    """Test that ensure_session_owner raises for a non-owning user."""
+    repository = FakeChatSessionRepository()
+    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+
+    _store_chat_session(repository)
+
+    with pytest.raises(ChatSessionNotFoundError):
+        await service.ensure_session_owner(TEST_USER_ID_2, TEST_SESSION_ID)
+
+
+@pytest.mark.asyncio
+async def test_ensure_no_active_job_success() -> None:
+    """Test that ensure_no_active_job passes for an idle chat session."""
+    repository = FakeChatSessionRepository()
+    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+
+    _store_chat_session(repository)
+
+    await service.ensure_no_active_job(TEST_USER_ID, TEST_SESSION_ID)
+
+
+@pytest.mark.asyncio
+async def test_ensure_no_active_job_raises_when_running() -> None:
+    """Test that ensure_no_active_job raises when a generation is running."""
+    repository = FakeChatSessionRepository()
+    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+
+    _store_chat_session(
+        repository,
+        generation_status=ChatSessionGenerationStatus.RUNNING,
+        generation_id=TEST_GENERATION_ID,
+    )
+
+    with pytest.raises(GenerationInProgressError):
+        await service.ensure_no_active_job(TEST_USER_ID, TEST_SESSION_ID)
+
+
+@pytest.mark.asyncio
+async def test_ensure_generation_lock_owner_success() -> None:
+    """Test that ensure_generation_lock_owner passes for the owning generation."""
+    repository = FakeChatSessionRepository()
+    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+
+    _store_chat_session(
+        repository,
+        generation_status=ChatSessionGenerationStatus.RUNNING,
+        generation_id=TEST_GENERATION_ID,
+    )
+
+    await service.ensure_generation_lock_owner(
+        user_id=TEST_USER_ID,
+        session_id=TEST_SESSION_ID,
+        generation_id=TEST_GENERATION_ID,
+    )
+
+
+@pytest.mark.asyncio
+async def test_ensure_generation_lock_owner_raises_for_other_generation() -> None:
+    """Test that ensure_generation_lock_owner raises for a non-owning generation."""
+    repository = FakeChatSessionRepository()
+    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+
+    _store_chat_session(
+        repository,
+        generation_status=ChatSessionGenerationStatus.RUNNING,
+        generation_id=TEST_GENERATION_ID,
+    )
+
+    with pytest.raises(GenerationNotFoundError):
+        await service.ensure_generation_lock_owner(
+            user_id=TEST_USER_ID,
+            session_id=TEST_SESSION_ID,
+            generation_id=TEST_GENERATION_ID_2,
+        )

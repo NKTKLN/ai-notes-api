@@ -7,6 +7,7 @@ and provides a FastAPI dependency for database sessions.
 from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
@@ -14,14 +15,14 @@ from sqlalchemy.ext.asyncio import (
 
 from ai_notes_api.core import settings
 
-engine = create_async_engine(
+engine: AsyncEngine = create_async_engine(
     settings.database_url,
     echo=False,
     pool_pre_ping=True,
     pool_recycle=3600,
 )
 
-async_session_factory = async_sessionmaker(
+async_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
     bind=engine,
     expire_on_commit=False,
 )

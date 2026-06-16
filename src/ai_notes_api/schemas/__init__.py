@@ -12,6 +12,14 @@ from .chat_session import (
 )
 from .completion import ChatCompletionResponseSchema
 from .error import ErrorResponseSchema
+from .generation_job import (
+    GenerationJobCreateSchema,
+    GenerationJobListQuerySchema,
+    GenerationJobListResponseSchema,
+    GenerationJobResponseSchema,
+    GenerationJobStatus,
+    GenerationJobUpdateSchema,
+)
 from .message import (
     AssistantMessageCreateSchema,
     MessageListQuerySchema,
@@ -52,4 +60,10 @@ __all__ = [
     "UserCreateSchema",
     "UserMessageCreateSchema",
     "UserResponseSchema",
+    "GenerationJobCreateSchema",
+    "GenerationJobStatus",
+    "GenerationJobListQuerySchema",
+    "GenerationJobListResponseSchema",
+    "GenerationJobResponseSchema",
+    "GenerationJobUpdateSchema",
 ]
