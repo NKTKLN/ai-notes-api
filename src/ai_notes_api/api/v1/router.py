@@ -6,7 +6,14 @@ routers that belong to the first version of the API.
 
 from fastapi import APIRouter
 
-from ai_notes_api.api.v1 import auth, chat_sessions, healthcheck, message, notes
+from ai_notes_api.api.v1 import (
+    auth,
+    chat_sessions,
+    completions,
+    healthcheck,
+    message,
+    notes,
+)
 
 router = APIRouter(
     prefix="/api/v1",
@@ -17,3 +24,4 @@ router.include_router(auth.router)
 router.include_router(notes.router)
 router.include_router(chat_sessions.router)
 router.include_router(message.router)
+router.include_router(completions.router)
