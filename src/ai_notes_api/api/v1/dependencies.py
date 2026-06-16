@@ -79,7 +79,7 @@ def get_note_service(
     """
     repository = NoteRepository(session)
 
-    return NoteService(repository)
+    return NoteService(repository=repository)
 
 
 def get_auth_service(
@@ -96,7 +96,7 @@ def get_auth_service(
     """
     repository = UserRepository(session)
 
-    return AuthService(repository)
+    return AuthService(repository=repository)
 
 
 async def get_current_user(
@@ -134,7 +134,7 @@ def get_chat_session_service(
     """
     repository = ChatSessionRepository(session)
 
-    return ChatSessionService(repository)
+    return ChatSessionService(repository=repository)
 
 
 def get_message_service(
@@ -152,7 +152,10 @@ def get_message_service(
     sessions = ChatSessionRepository(session)
     messages = MessageRepository(session)
 
-    return MessageService(messages, sessions)
+    return MessageService(
+        message_repository=messages,
+        session_repository=sessions,
+    )
 
 
 def get_llm_client(request: Request) -> LLMClient:
@@ -181,12 +184,19 @@ def get_llm_service(
     Returns:
         LLMService: Configured LLM service instance.
     """
+    notes = NoteRepository(session)
     messages = MessageRepository(session)
     sessions = ChatSessionRepository(session)
+    notes_service = NoteService(notes)
     sessions_service = ChatSessionService(sessions)
     message_service = MessageService(messages, sessions)
 
-    return LLMService(client, sessions_service, message_service)
+    return LLMService(
+        client=client,
+        notes_service=notes_service,
+        sessions_service=sessions_service,
+        message_service=message_service,
+    )
 
 
 def get_job_service(
@@ -205,4 +215,7 @@ def get_job_service(
     sessions = ChatSessionRepository(session)
     sessions_service = ChatSessionService(sessions)
 
-    return JobService(jobs, sessions_service)
+    return JobService(
+        job_repository=jobs,
+        sessions_service=sessions_service,
+    )

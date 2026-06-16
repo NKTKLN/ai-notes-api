@@ -18,6 +18,8 @@ from ai_notes_api.schemas import (
 )
 from ai_notes_api.services.chat_session import ChatSessionService
 from ai_notes_api.services.message import MessageService
+from ai_notes_api.services.note import NoteService
+from ai_notes_api.tools import build_registry
 
 
 class LLMService:
@@ -25,27 +27,33 @@ class LLMService:
 
     Args:
         client (LLMClient): LLM client used to generate model responses.
-        sessions (ChatSessionService): Chat session service used to validate
-            access and manage generation locks.
-        messages (MessageService): Message service used to persist chat messages.
+        notes_service (NoteService): Note service used by LLM tools.
+        sessions_service (ChatSessionService): Chat session service used to
+            validate access and manage generation locks.
+        messages_service (MessageService): Message service used to persist chat
+            messages.
     """
 
     def __init__(
         self,
         client: LLMClient,
-        sessions: ChatSessionService,
-        messages: MessageService,
+        notes_service: NoteService,
+        sessions_service: ChatSessionService,
+        messages_service: MessageService,
     ) -> None:
         """Initialize the LLM service.
 
         Args:
             client (LLMClient): LLM client used by the service.
-            sessions (ChatSessionService): Chat session service used by the service.
-            messages (MessageService): Message service used by the service.
+            notes_service (NoteService): Note service used by LLM tools.
+            sessions_service (ChatSessionService): Chat session service used by
+                the service.
+            messages_service (MessageService): Message service used by the service.
         """
         self.client = client
-        self.sessions = sessions
-        self.messages = messages
+        self.notes = notes_service
+        self.sessions = sessions_service
+        self.messages = messages_service
 
     def _get_value(self, source: Any, name: str) -> Any:
         """Return a value from an object or dictionary.
@@ -128,6 +136,8 @@ class LLMService:
             data=message,
         )
 
+        tools = build_registry(notes_service=self.notes, user_id=user_id)
+
         context_messages = await self.messages.get_context_messages(
             user_id=user_id,
             session_id=message.session_id,
@@ -136,7 +146,10 @@ class LLMService:
 
         input_data = PromptBuilder.build(context_messages)
 
-        llm_response = await self.client.create_response(input_data)
+        llm_response = await self.client.create_response(
+            input_data=input_data,
+            tools=tools,
+        )
 
         assistant_message = await self._create_assistant_message_from_response(
             user_id=user_id,
@@ -267,6 +280,8 @@ class LLMService:
                 data=message,
             )
 
+            tools = build_registry(notes_service=self.notes, user_id=user_id)
+
             context_messages = await self.messages.get_context_messages(
                 user_id=user_id,
                 session_id=message.session_id,
@@ -275,7 +290,10 @@ class LLMService:
 
             input_data = PromptBuilder.build(context_messages)
 
-            async for event in self.client.stream_response_events(input_data):
+            async for event in self.client.stream_response_events(
+                input_data=input_data,
+                tools=tools,
+            ):
                 if event.type == "final" and event.response is not None:
                     await self._create_assistant_message_from_response(
                         user_id=user_id,
