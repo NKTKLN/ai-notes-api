@@ -8,7 +8,6 @@ from celery.signals import worker_process_init
 from loguru import logger
 
 from ai_notes_api.core import settings, setup_logger
-from ai_notes_api.workers.runtime import runtime
 
 celery_app = Celery(
     "ai_notes_api_worker",
@@ -26,7 +25,5 @@ def init_worker_process(**_kwargs: object) -> None:
         **kwargs (object): Celery signal keyword arguments.
     """
     setup_logger()
-
-    runtime.init()
 
     logger.info("Celery worker process initialized")
