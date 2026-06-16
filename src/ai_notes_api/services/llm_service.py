@@ -27,33 +27,33 @@ class LLMService:
 
     Args:
         client (LLMClient): LLM client used to generate model responses.
-        notes_service (NoteService): Note service used by LLM tools.
-        sessions_service (ChatSessionService): Chat session service used to
+        note_service (NoteService): Note service used by LLM tools.
+        session_service (ChatSessionService): Chat session service used to
             validate access and manage generation locks.
-        messages_service (MessageService): Message service used to persist chat
+        message_service (MessageService): Message service used to persist chat
             messages.
     """
 
     def __init__(
         self,
         client: LLMClient,
-        notes_service: NoteService,
-        sessions_service: ChatSessionService,
-        messages_service: MessageService,
+        note_service: NoteService,
+        session_service: ChatSessionService,
+        message_service: MessageService,
     ) -> None:
         """Initialize the LLM service.
 
         Args:
             client (LLMClient): LLM client used by the service.
-            notes_service (NoteService): Note service used by LLM tools.
-            sessions_service (ChatSessionService): Chat session service used by
+            note_service (NoteService): Note service used by LLM tools.
+            session_service (ChatSessionService): Chat session service used by
                 the service.
-            messages_service (MessageService): Message service used by the service.
+            message_service (MessageService): Message service used by the service.
         """
         self.client = client
-        self.notes = notes_service
-        self.sessions = sessions_service
-        self.messages = messages_service
+        self.notes = note_service
+        self.sessions = session_service
+        self.messages = message_service
 
     def _get_value(self, source: Any, name: str) -> Any:
         """Return a value from an object or dictionary.

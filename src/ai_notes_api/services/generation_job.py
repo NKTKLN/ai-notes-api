@@ -20,25 +20,25 @@ class JobService:
     Args:
         job_repository (GenerationJobRepository): Repository used to perform
             generation job database operations.
-        sessions_service (ChatSessionService): Chat session service used to validate
+        session_service (ChatSessionService): Chat session service used to validate
             access and manage generation locks.
     """
 
     def __init__(
         self,
         job_repository: GenerationJobRepository,
-        sessions_service: ChatSessionService,
+        session_service: ChatSessionService,
     ) -> None:
         """Initialize the generation job service.
 
         Args:
             job_repository (GenerationJobRepository): Generation job repository
                 used by the service.
-            sessions_service (ChatSessionService): Chat session service used by the
+            session_service (ChatSessionService): Chat session service used by the
                 service.
         """
         self.jobs = job_repository
-        self.sessions = sessions_service
+        self.sessions = session_service
 
     async def create_job(
         self,

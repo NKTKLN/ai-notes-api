@@ -17,9 +17,15 @@ from ai_notes_api.repositories import (
     ChatSessionRepository,
     GenerationJobRepository,
     MessageRepository,
+    NoteRepository,
 )
 from ai_notes_api.schemas.message import UserMessageCreateSchema
-from ai_notes_api.services import ChatSessionService, LLMService, MessageService
+from ai_notes_api.services import (
+    ChatSessionService,
+    LLMService,
+    MessageService,
+    NoteService,
+)
 from ai_notes_api.workers.celery_app import celery_app
 from ai_notes_api.workers.runtime import runtime
 
@@ -49,15 +55,17 @@ async def _run_generation_job(job_id: UUID) -> None:
     llm_client = runtime.get_llm_client()
 
     async with async_session_factory() as session:
-        messages_repository = MessageRepository(session)
-        sessions_repository = ChatSessionRepository(session)
-        generation_job_repository = GenerationJobRepository(session)
+        notes_repository = NoteRepository(session=session)
+        messages_repository = MessageRepository(session=session)
+        sessions_repository = ChatSessionRepository(session=session)
+        generation_job_repository = GenerationJobRepository(session=session)
 
+        notes_service = NoteService(repository=notes_repository)
         messages_service = MessageService(
-            messages_repository,
-            sessions_repository,
+            message_repository=messages_repository,
+            session_repository=sessions_repository,
         )
-        sessions_service = ChatSessionService(sessions_repository)
+        sessions_service = ChatSessionService(repository=sessions_repository)
 
         generation_job = await generation_job_repository.get_by_id(job_id)
 
@@ -71,8 +79,9 @@ async def _run_generation_job(job_id: UUID) -> None:
 
         service = LLMService(
             client=llm_client,
-            sessions=sessions_service,
-            messages=messages_service,
+            note_service=notes_service,
+            session_service=sessions_service,
+            message_service=messages_service,
         )
 
         try:
