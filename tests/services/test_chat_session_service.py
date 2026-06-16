@@ -6,13 +6,18 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from ai_notes_api.db.models import ChatSession, ChatSessionGenerationStatus
+from ai_notes_api.db.models import (
+    ChatMemory,
+    ChatSession,
+    ChatSessionGenerationStatus,
+)
 from ai_notes_api.exceptions import (
     ChatSessionNotFoundError,
     GenerationInProgressError,
     GenerationNotFoundError,
 )
 from ai_notes_api.repositories import ChatSessionListFilters
+from ai_notes_api.repositories.chat_memory import ChatMemoryRepository
 from ai_notes_api.repositories.chat_session import ChatSessionRepository
 from ai_notes_api.schemas import (
     ChatSessionCreateSchema,
@@ -162,11 +167,40 @@ class FakeChatSessionRepository:
         )
 
 
+class FakeChatMemoryRepository:
+    """Fake chat memory repository used for testing service behavior."""
+
+    def __init__(self) -> None:
+        """Initialize fake repository."""
+        self.chat_memories: dict[UUID, ChatMemory] = {}
+        self.created_chat_memory: ChatMemory | None = None
+
+    async def create(self, chat_memory: ChatMemory) -> ChatMemory:
+        """Create chat memory."""
+        self.created_chat_memory = chat_memory
+        self.chat_memories[chat_memory.session_id] = chat_memory
+        return chat_memory
+
+
+def make_service(
+    repository: FakeChatSessionRepository,
+    memory_repository: FakeChatMemoryRepository | None = None,
+) -> ChatSessionService:
+    """Build a chat session service backed by fake repositories."""
+    memory_repository = memory_repository or FakeChatMemoryRepository()
+
+    return ChatSessionService(
+        session_repository=cast(ChatSessionRepository, repository),
+        memory_repository=cast(ChatMemoryRepository, memory_repository),
+    )
+
+
 @pytest.mark.asyncio
 async def test_create_chat_session_success() -> None:
     """Test successful chat session creation."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    memory_repository = FakeChatMemoryRepository()
+    service = make_service(repository, memory_repository)
 
     data = ChatSessionCreateSchema(title="Test session")
 
@@ -175,13 +209,15 @@ async def test_create_chat_session_success() -> None:
     assert chat_session.id == TEST_SESSION_ID
     assert chat_session.user_id == TEST_USER_ID
     assert chat_session.title == "Test session"
+    assert memory_repository.created_chat_memory is not None
+    assert memory_repository.created_chat_memory.session_id == TEST_SESSION_ID
 
 
 @pytest.mark.asyncio
 async def test_get_chat_session_success() -> None:
     """Test successful chat session retrieval by identifier."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     repository.chat_sessions[TEST_SESSION_ID] = ChatSession(
         id=TEST_SESSION_ID,
@@ -198,7 +234,7 @@ async def test_get_chat_session_success() -> None:
 async def test_get_chat_session_not_found_by_id() -> None:
     """Test that retrieval raises an error when chat session is not found."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     with pytest.raises(ChatSessionNotFoundError):
         await service.get_chat_session(TEST_USER_ID, uuid4())
@@ -208,7 +244,7 @@ async def test_get_chat_session_not_found_by_id() -> None:
 async def test_get_chat_session_not_found_for_another_user() -> None:
     """Test that another user's chat session cannot be retrieved."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     repository.chat_sessions[TEST_SESSION_ID] = ChatSession(
         id=TEST_SESSION_ID,
@@ -224,7 +260,7 @@ async def test_get_chat_session_not_found_for_another_user() -> None:
 async def test_update_chat_session_success() -> None:
     """Test successful chat session update."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     repository.chat_sessions[TEST_SESSION_ID] = ChatSession(
         id=TEST_SESSION_ID,
@@ -245,7 +281,7 @@ async def test_update_chat_session_success() -> None:
 async def test_update_chat_session_not_found_by_id() -> None:
     """Test that update raises an error when chat session is not found."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     data = ChatSessionUpdateSchema(title="New session")
 
@@ -257,7 +293,7 @@ async def test_update_chat_session_not_found_by_id() -> None:
 async def test_update_chat_session_not_found_for_another_user() -> None:
     """Test that another user's chat session cannot be updated."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     repository.chat_sessions[TEST_SESSION_ID] = ChatSession(
         id=TEST_SESSION_ID,
@@ -275,7 +311,7 @@ async def test_update_chat_session_not_found_for_another_user() -> None:
 async def test_delete_chat_session_success() -> None:
     """Test successful chat session deletion."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     repository.chat_sessions[TEST_SESSION_ID] = ChatSession(
         id=TEST_SESSION_ID,
@@ -292,7 +328,7 @@ async def test_delete_chat_session_success() -> None:
 async def test_delete_chat_session_not_found_by_id() -> None:
     """Test that delete raises an error when chat session is not found."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     with pytest.raises(ChatSessionNotFoundError):
         await service.delete_chat_session(TEST_USER_ID, uuid4())
@@ -302,7 +338,7 @@ async def test_delete_chat_session_not_found_by_id() -> None:
 async def test_delete_chat_session_not_found_for_another_user() -> None:
     """Test that another user's chat session cannot be deleted."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     repository.chat_sessions[TEST_SESSION_ID] = ChatSession(
         id=TEST_SESSION_ID,
@@ -318,7 +354,7 @@ async def test_delete_chat_session_not_found_for_another_user() -> None:
 async def test_get_chat_sessions_list_success() -> None:
     """Test successful chat session list retrieval with filters."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     repository.chat_sessions[TEST_SESSION_ID] = ChatSession(
         id=TEST_SESSION_ID,
@@ -376,7 +412,7 @@ def _store_chat_session(
 async def test_acquire_generation_lock_success() -> None:
     """Test that the service acquires a generation lock on an idle session."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     _store_chat_session(repository)
 
@@ -396,7 +432,7 @@ async def test_acquire_generation_lock_success() -> None:
 async def test_acquire_generation_lock_raises_when_in_progress() -> None:
     """Test that acquiring a lock raises when a generation is already running."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     _store_chat_session(
         repository,
@@ -418,7 +454,7 @@ async def test_acquire_generation_lock_raises_when_in_progress() -> None:
 async def test_release_generation_lock_success() -> None:
     """Test that the service releases a generation lock it owns."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     _store_chat_session(
         repository,
@@ -442,7 +478,7 @@ async def test_release_generation_lock_success() -> None:
 async def test_release_generation_lock_other_generation_is_noop() -> None:
     """Test that releasing with a non-owning generation does not unlock."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     _store_chat_session(
         repository,
@@ -466,7 +502,7 @@ async def test_release_generation_lock_other_generation_is_noop() -> None:
 async def test_ensure_session_owner_success() -> None:
     """Test that ensure_session_owner passes for the owning user."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     _store_chat_session(repository)
 
@@ -477,7 +513,7 @@ async def test_ensure_session_owner_success() -> None:
 async def test_ensure_session_owner_not_found() -> None:
     """Test that ensure_session_owner raises when the session is missing."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     with pytest.raises(ChatSessionNotFoundError):
         await service.ensure_session_owner(TEST_USER_ID, uuid4())
@@ -487,7 +523,7 @@ async def test_ensure_session_owner_not_found() -> None:
 async def test_ensure_session_owner_other_user() -> None:
     """Test that ensure_session_owner raises for a non-owning user."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     _store_chat_session(repository)
 
@@ -499,7 +535,7 @@ async def test_ensure_session_owner_other_user() -> None:
 async def test_ensure_no_active_job_success() -> None:
     """Test that ensure_no_active_job passes for an idle chat session."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     _store_chat_session(repository)
 
@@ -510,7 +546,7 @@ async def test_ensure_no_active_job_success() -> None:
 async def test_ensure_no_active_job_raises_when_running() -> None:
     """Test that ensure_no_active_job raises when a generation is running."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     _store_chat_session(
         repository,
@@ -526,7 +562,7 @@ async def test_ensure_no_active_job_raises_when_running() -> None:
 async def test_ensure_generation_lock_owner_success() -> None:
     """Test that ensure_generation_lock_owner passes for the owning generation."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     _store_chat_session(
         repository,
@@ -545,7 +581,7 @@ async def test_ensure_generation_lock_owner_success() -> None:
 async def test_ensure_generation_lock_owner_raises_for_other_generation() -> None:
     """Test that ensure_generation_lock_owner raises for a non-owning generation."""
     repository = FakeChatSessionRepository()
-    service = ChatSessionService(repository=cast(ChatSessionRepository, repository))
+    service = make_service(repository)
 
     _store_chat_session(
         repository,
