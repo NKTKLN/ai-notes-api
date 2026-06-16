@@ -1,13 +1,16 @@
 """LLM tool registry builder module.
 
-This module defines a factory for building an LLM tool registry with built-in
-tools.
+This module defines a factory for building an LLM tool registry with built-in tools.
 """
 
 from uuid import UUID
 
 from ai_notes_api.services.note import NoteService
-from ai_notes_api.tools.builtins import make_search_notes_tool, make_get_note_by_id_tool
+from ai_notes_api.tools.builtins import (
+    make_create_note_tool,
+    make_get_note_by_id_tool,
+    make_search_notes_tool,
+)
 from ai_notes_api.tools.registry import ToolRegistry
 
 
@@ -23,18 +26,18 @@ def build_registry(notes_service: NoteService, user_id: UUID) -> ToolRegistry:
     """
     registry = ToolRegistry()
 
-    registry.register(
-        **make_search_notes_tool(
-            notes_service=notes_service,
-            user_id=user_id,
-        )
-    )
+    notes_tools = [
+        make_search_notes_tool,
+        make_get_note_by_id_tool,
+        make_create_note_tool,
+    ]
 
-    registry.register(
-        **make_get_note_by_id_tool(
-            notes_service=notes_service,
-            user_id=user_id,
+    for tool in notes_tools:
+        registry.register(
+            **tool(
+                notes_service=notes_service,
+                user_id=user_id,
+            )
         )
-    )
 
     return registry
