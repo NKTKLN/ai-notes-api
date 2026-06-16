@@ -12,7 +12,6 @@ from loguru import logger
 
 from ai_notes_api.tools.exceptions import (
     ToolAlreadyRegisteredError,
-    ToolHandlerNotCallableError,
 )
 from ai_notes_api.tools.models import ToolHandler, ToolSpec
 
@@ -47,10 +46,6 @@ class ToolRegistry:
         if name in self._tools:
             logger.warning("Tool already registered: name={}", name)
             raise ToolAlreadyRegisteredError(name)
-
-        if not callable(handler):
-            logger.warning("Tool handler is not callable: name={}", name)
-            raise ToolHandlerNotCallableError(name)
 
         self._tools[name] = ToolSpec(
             name=name,

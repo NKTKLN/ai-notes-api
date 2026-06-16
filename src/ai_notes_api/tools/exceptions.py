@@ -15,16 +15,3 @@ class ToolAlreadyRegisteredError(ValueError):
         """
         super().__init__(f"Tool already registered: {name}")
         self.name = name
-
-
-class ToolHandlerNotCallableError(TypeError):
-    """Exception raised when a tool handler is not callable."""
-
-    def __init__(self, name: str):
-        """Initialize the exception.
-
-        Args:
-            name (str): Name of the tool with the invalid handler.
-        """
-        super().__init__(f"Handler for tool '{name}' must be callable")
-        self.name = name
