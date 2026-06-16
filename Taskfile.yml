@@ -160,6 +160,11 @@ tasks:
     cmds:
       - uv run uvicorn ai_notes_api.main:app --reload --app-dir src
 
+  run-celery:
+    desc: Run the Celery
+    cmds:
+      - uv run celery -A ai_notes_api.workers.celery_app.celery_app worker --loglevel=info
+
   # ======== Build ========
   build:
     desc: Build package (wheel + sdist)
