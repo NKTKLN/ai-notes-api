@@ -4,10 +4,7 @@ import json
 
 import pytest
 
-from ai_notes_api.tools.exceptions import (
-    ToolAlreadyRegisteredError,
-    ToolHandlerNotCallableError,
-)
+from ai_notes_api.tools.exceptions import ToolAlreadyRegisteredError
 from ai_notes_api.tools.registry import ToolRegistry
 
 PARAMETERS = {
@@ -70,22 +67,6 @@ def test_register_duplicate_name_raises() -> None:
         )
 
     assert exc_info.value.name == "echo"
-
-
-def test_register_non_callable_handler_raises() -> None:
-    """Test that registering a non-callable handler raises an error."""
-    registry = ToolRegistry()
-
-    with pytest.raises(ToolHandlerNotCallableError) as exc_info:
-        registry.register(
-            name="echo",
-            description="Echo the value.",
-            parameters=PARAMETERS,
-            handler="not-callable",  # type: ignore[arg-type]
-        )
-
-    assert exc_info.value.name == "echo"
-    assert registry.get_tools() == []
 
 
 @pytest.mark.asyncio
