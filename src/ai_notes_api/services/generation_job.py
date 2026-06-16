@@ -147,6 +147,7 @@ class JobService:
         update_data = data.model_dump(exclude_unset=True)
 
         for field, value in update_data.items():
-            setattr(job, field, value)
+            if value is not None:
+                setattr(job, field, value)
 
         return await self.jobs.update(job)

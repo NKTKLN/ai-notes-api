@@ -133,7 +133,8 @@ class ChatSessionService:
 
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
-            setattr(chat_session, field, value)
+            if value is not None:
+                setattr(chat_session, field, value)
 
         await self.repository.update(chat_session)
 

@@ -118,7 +118,8 @@ class NoteService:
 
         update_data = note_update.model_dump(exclude_unset=True)
         for field, value in update_data.items():
-            setattr(note, field, value)
+            if value is not None:
+                setattr(note, field, value)
 
         await self.repository.update(note)
 
