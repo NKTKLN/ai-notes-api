@@ -43,6 +43,7 @@ class ChatMemory(Base, TimestampMixin):
             "chat_sessions.id",
             ondelete="CASCADE",
         ),
+        unique=True,
         nullable=False,
         index=True,
     )
