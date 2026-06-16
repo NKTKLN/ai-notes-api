@@ -129,7 +129,7 @@ def build_service(
     """Build a JobService wired with fake dependencies."""
     return JobService(
         job_repository=cast(GenerationJobRepository, repository),
-        sessions=cast(ChatSessionService, sessions),
+        sessions_service=cast(ChatSessionService, sessions),
     )
 
 
