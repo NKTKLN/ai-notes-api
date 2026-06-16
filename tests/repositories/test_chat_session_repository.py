@@ -9,9 +9,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 try:
-    from ai_notes_api.db.models import ChatSession, Message, User
+    from ai_notes_api.db.models import (
+        ChatSession,
+        GenerationJob,
+        GenerationJobStatus,
+        Message,
+        User,
+    )
 except ImportError:
     from ai_notes_api.db.models.chat_session import ChatSession
+    from ai_notes_api.db.models.generation_job import (
+        GenerationJob,
+        GenerationJobStatus,
+    )
     from ai_notes_api.db.models.message import Message
     from ai_notes_api.db.models.user import User
 
@@ -111,6 +121,32 @@ def create_message(
         session_id=session_id,
         role=_message_role_value(role),
         content=content,
+    )
+
+
+def create_generation_job(
+    *,
+    user_id: UUID,
+    session_id: UUID,
+    input_message: str = "Test input message",
+    status: GenerationJobStatus = GenerationJobStatus.QUEUED,
+) -> GenerationJob:
+    """Create a generation job instance for chat session repository tests.
+
+    Args:
+        user_id (UUID): Identifier of the user who owns the generation job.
+        session_id (UUID): Identifier of the chat session that owns the job.
+        input_message (str): User input message used for generation.
+        status (GenerationJobStatus): Generation job status.
+
+    Returns:
+        GenerationJob: Generation job model instance.
+    """
+    return GenerationJob(
+        user_id=user_id,
+        session_id=session_id,
+        input_message=input_message,
+        status=status,
     )
 
 
@@ -885,3 +921,136 @@ async def test_delete_chat_session_preserves_database_row_success(
     assert stored_chat_session.id == chat_session.id
     assert stored_chat_session.user_id == test_user.id
     assert stored_chat_session.deleted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_chat_session_cancels_active_generation_jobs_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that chat session soft deletion cancels active generation jobs."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(
+        create_chat_session(
+            user_id=test_user.id,
+            title="Test session",
+        )
+    )
+
+    queued_job = create_generation_job(
+        user_id=test_user.id,
+        session_id=chat_session.id,
+        status=GenerationJobStatus.QUEUED,
+    )
+    running_job = create_generation_job(
+        user_id=test_user.id,
+        session_id=chat_session.id,
+        status=GenerationJobStatus.RUNNING,
+    )
+    async_session.add_all([queued_job, running_job])
+    await async_session.flush()
+
+    await repository.soft_delete(chat_session)
+
+    result = await async_session.execute(
+        select(GenerationJob).where(GenerationJob.session_id == chat_session.id)
+    )
+    stored_jobs = list(result.scalars().all())
+
+    assert len(stored_jobs) == 2
+    assert all(job.status == GenerationJobStatus.CANCELLED for job in stored_jobs)
+    assert all(job.finished_at is not None for job in stored_jobs)
+    assert all(isinstance(job.finished_at, datetime) for job in stored_jobs)
+
+
+@pytest.mark.asyncio
+async def test_delete_chat_session_keeps_finished_generation_jobs_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that chat session soft deletion does not touch finished jobs."""
+    repository = ChatSessionRepository(session=async_session)
+
+    chat_session = await repository.create(
+        create_chat_session(
+            user_id=test_user.id,
+            title="Test session",
+        )
+    )
+
+    completed_job = create_generation_job(
+        user_id=test_user.id,
+        session_id=chat_session.id,
+        status=GenerationJobStatus.COMPLETED,
+    )
+    failed_job = create_generation_job(
+        user_id=test_user.id,
+        session_id=chat_session.id,
+        status=GenerationJobStatus.FAILED,
+    )
+    async_session.add_all([completed_job, failed_job])
+    await async_session.flush()
+
+    await repository.soft_delete(chat_session)
+
+    completed_result = await async_session.execute(
+        select(GenerationJob).where(GenerationJob.id == completed_job.id)
+    )
+    failed_result = await async_session.execute(
+        select(GenerationJob).where(GenerationJob.id == failed_job.id)
+    )
+    stored_completed_job = completed_result.scalar_one()
+    stored_failed_job = failed_result.scalar_one()
+
+    assert stored_completed_job.status == GenerationJobStatus.COMPLETED
+    assert stored_failed_job.status == GenerationJobStatus.FAILED
+
+
+@pytest.mark.asyncio
+async def test_delete_chat_session_does_not_cancel_other_session_jobs_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that chat session soft deletion does not cancel other sessions' jobs."""
+    repository = ChatSessionRepository(session=async_session)
+
+    deleted_chat_session = await repository.create(
+        create_chat_session(
+            user_id=test_user.id,
+            title="Deleted session",
+        )
+    )
+    active_chat_session = await repository.create(
+        create_chat_session(
+            user_id=test_user.id,
+            title="Active session",
+        )
+    )
+
+    deleted_session_job = create_generation_job(
+        user_id=test_user.id,
+        session_id=deleted_chat_session.id,
+        status=GenerationJobStatus.QUEUED,
+    )
+    active_session_job = create_generation_job(
+        user_id=test_user.id,
+        session_id=active_chat_session.id,
+        status=GenerationJobStatus.QUEUED,
+    )
+    async_session.add_all([deleted_session_job, active_session_job])
+    await async_session.flush()
+
+    await repository.soft_delete(deleted_chat_session)
+
+    deleted_job_result = await async_session.execute(
+        select(GenerationJob).where(GenerationJob.id == deleted_session_job.id)
+    )
+    active_job_result = await async_session.execute(
+        select(GenerationJob).where(GenerationJob.id == active_session_job.id)
+    )
+    stored_deleted_session_job = deleted_job_result.scalar_one()
+    stored_active_session_job = active_job_result.scalar_one()
+
+    assert stored_deleted_session_job.status == GenerationJobStatus.CANCELLED
+    assert stored_active_session_job.status == GenerationJobStatus.QUEUED
