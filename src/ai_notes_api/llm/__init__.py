@@ -5,6 +5,7 @@ tools.
 """
 
 from .client import LLMClient
+from .embeddings import EmbeddingClient
 from .models import LLMMessage, LLMResponse, LLMStreamEvent, LLMToolCall
 from .prompt_builder import PromptBuilder
 
@@ -15,4 +16,5 @@ __all__ = [
     "LLMStreamEvent",
     "LLMToolCall",
     "PromptBuilder",
+    "EmbeddingClient",
 ]

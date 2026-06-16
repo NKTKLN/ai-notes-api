@@ -13,11 +13,11 @@ from fastapi.responses import RedirectResponse
 from ai_notes_api.api.v1 import router
 from ai_notes_api.core import setup_logger
 from ai_notes_api.exceptions import register_exception_handlers
-from ai_notes_api.llm import LLMClient
+from ai_notes_api.integrations import close_openai_client
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Manage the application lifespan.
 
     Initializes application-wide resources before the application starts
@@ -31,12 +31,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     setup_logger()
 
-    app.state.llm_client = LLMClient()
-
     try:
         yield
     finally:
-        await app.state.llm_client.aclose()
+        await close_openai_client()
 
 
 app: FastAPI = FastAPI(

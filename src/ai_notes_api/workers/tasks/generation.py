@@ -13,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_notes_api.db.models import GenerationJobStatus
 from ai_notes_api.db.session import async_session_factory
 from ai_notes_api.exceptions.generation_job import GenerationNotFoundError
+from ai_notes_api.integrations import openai_client
+from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
     ChatSessionRepository,
     GenerationJobRepository,
@@ -27,7 +29,6 @@ from ai_notes_api.services import (
     NoteService,
 )
 from ai_notes_api.workers.celery_app import celery_app
-from ai_notes_api.workers.runtime import runtime
 
 ERROR_MAX_LENGTH = 10_000
 
@@ -52,7 +53,7 @@ async def _run_generation_job(job_id: UUID) -> None:
         GenerationNotFoundError: If no generation job with the given identifier
             exists.
     """
-    llm_client = runtime.get_llm_client()
+    llm_client = LLMClient(openai_client)
 
     async with async_session_factory() as session:
         notes_repository = NoteRepository(session=session)
