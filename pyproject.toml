@@ -73,6 +73,10 @@ target-version = "py313"
 extend-include = ["*.ipynb"]
 exclude = [".git", "__pycache__", "build", "dist", ".venv", "tmp", "alembic"]
 
+[[tool.mypy.overrides]]
+module = ["celery.*"]
+ignore_missing_imports = true
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
@@ -130,7 +134,7 @@ filterwarnings = [
 known_first_party = ["ai_notes_api"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["uvicorn", "asyncpg", "greenlet", "bcrypt", "python-multipart"]
+DEP002 = ["uvicorn", "asyncpg", "greenlet", "bcrypt", "python-multipart", "redis"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
