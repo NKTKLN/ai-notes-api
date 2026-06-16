@@ -6,17 +6,16 @@ This module defines an LLM tool for searching a user's private notes.
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from ai_notes_api.db.models import ModelSource
-from ai_notes_api.repositories import NoteListFilters, NoteRepository
+from ai_notes_api.schemas import NoteListQuerySchema
+from ai_notes_api.services import NoteService
 
 
-def make_search_notes_tool(session: AsyncSession, user_id: UUID) -> dict[str, Any]:
+def make_search_notes_tool(notes_service: NoteService, user_id: UUID) -> dict[str, Any]:
     """Create a search notes LLM tool.
 
     Args:
-        session (AsyncSession): Asynchronous database session used by the tool.
+        notes_service (NoteService): Note service used by the tool.
         user_id (UUID): Unique identifier of the user whose notes are searched.
 
     Returns:
@@ -27,7 +26,7 @@ def make_search_notes_tool(session: AsyncSession, user_id: UUID) -> dict[str, An
         limit: int = 5,
         offset: int = 0,
         search: str | None = None,
-        source: ModelSource | None = None,
+        source: str | None = None,
         tag: str | None = None,
         model_name: str | None = None,
     ) -> dict[str, Any]:
@@ -36,23 +35,19 @@ def make_search_notes_tool(session: AsyncSession, user_id: UUID) -> dict[str, An
         Args:
             limit (int): Maximum number of notes to return.
             offset (int): Number of notes to skip before returning results.
-            search (str | None): Optional text used to search notes by title or
-                content.
-            source (ModelSource | None): Optional note source used to filter
-                results.
+            search (str | None): Optional text used to search notes by title or content.
+            source (str | None): Optional note source used to filter results.
             tag (str | None): Optional tag used to filter results.
             model_name (str | None): Optional model name used to filter results.
 
         Returns:
             dict[str, Any]: Matching notes serialized for the LLM.
         """
-        repository = NoteRepository(session)
+        source_value = ModelSource(source) if source is not None else None
 
-        source_value = ModelSource(source) if isinstance(source, str) else source
-
-        notes = await repository.get_list(
+        notes = await notes_service.get_notes_list(
             user_id=user_id,
-            filters=NoteListFilters(
+            filters=NoteListQuerySchema(
                 limit=limit,
                 offset=offset,
                 search=search,
