@@ -1,7 +1,7 @@
 [project]
 name = "ai_notes_api"
-version = "0.2.0"
-description = "AI Note's API" # TODO
+version = "0.3.0"
+description = "AI Note's API"
 authors = [{ name = "NKTKLN", email = "nktkln@nktkln.com" }]
 readme = "README.md"
 requires-python = ">=3.13"
