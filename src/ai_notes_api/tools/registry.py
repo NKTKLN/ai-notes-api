@@ -61,6 +61,19 @@ class ToolRegistry:
 
         logger.info("Tool registered: name={}", name)
 
+    def get_tools(self) -> list[dict[str, Any]]:
+        """Return registered tools serialized for the LLM provider.
+
+        Returns:
+            list[dict[str, Any]]: Registered tool definitions.
+        """
+        tools: list[dict[str, Any]] = []
+
+        for tool in self._tools.values():
+            tools.append(tool.to_llm_tool())
+
+        return tools
+
     async def call(self, name: str, arguments: str) -> str:
         """Call a registered tool with JSON-encoded arguments.
 
@@ -88,8 +101,8 @@ class ToolRegistry:
             handler = self._tools[name].handler
             result = handler(**parsed_arguments)
 
-            if isawaitable(handler):
-                result = await handler
+            if isawaitable(result):
+                result = await result
 
             logger.info("Tool call succeeded: name={}", name)
 
