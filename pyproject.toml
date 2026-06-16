@@ -20,6 +20,7 @@ dependencies = [
     "bcrypt==4.0.1",
     "python-multipart>=0.0.32",
     "openai>=2.41.1",
+    "sse-starlette>=3.4.4",
 ]
 
 [dependency-groups]
@@ -78,7 +79,7 @@ docstring-code-format = true
 docstring-code-line-length = "dynamic"
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "D", "B", "B9", "C90", "S", "UP", "SIM", "TRY", "PL", "RUF", "ARG", "PTH"]
+select = ["E", "W", "F", "I", "D", "B", "B9", "C90", "S", "UP", "SIM", "TRY", "PL", "ARG", "PTH"]
 ignore = ["E203", "D100"]
 fixable = ["ALL"]
 

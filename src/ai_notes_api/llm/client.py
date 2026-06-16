@@ -274,11 +274,17 @@ class LLMClient:
             kwargs["max_output_tokens"],
         )
 
+        response_id = None
+
         async with self.client.responses.stream(**kwargs) as stream:
             async for event in stream:
+                if event.type == "response.created":
+                    response_id = event.response.id
+
                 if event.type == "response.output_text.delta":
                     yield LLMStreamEvent(
                         type="delta",
+                        id=f"{response_id}:{event.sequence_number}",
                         delta=event.delta,
                     )
 

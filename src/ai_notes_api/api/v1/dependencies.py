@@ -25,6 +25,7 @@ from ai_notes_api.repositories import (
 from ai_notes_api.services import (
     AuthService,
     ChatSessionService,
+    LLMService,
     MessageService,
     NoteService,
 )
@@ -162,3 +163,24 @@ def get_llm_client(request: Request) -> LLMClient:
         LLMClient: Shared LLM client instance.
     """
     return cast(LLMClient, request.app.state.llm_client)
+
+
+def get_llm_service(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    client: Annotated[LLMClient, Depends(get_llm_client)],
+) -> LLMService:
+    """Provide an LLM service instance.
+
+    Args:
+        session (AsyncSession): Asynchronous database session provided by FastAPI
+            dependency injection.
+        client (LLMClient): Shared LLM client dependency.
+
+    Returns:
+        LLMService: Configured LLM service instance.
+    """
+    messages = MessageRepository(session)
+    sessions = ChatSessionRepository(session)
+    message_service = MessageService(messages, sessions)
+
+    return LLMService(client, message_service)

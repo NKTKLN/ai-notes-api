@@ -7,6 +7,8 @@ streaming events.
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from ai_notes_api.db.models import MessageRole
+
 
 @dataclass
 class LLMToolCall:
@@ -43,16 +45,31 @@ class LLMResponse:
 
 
 @dataclass
+class LLMMessage:
+    """Message used as model input context.
+
+    Attributes:
+        role (MessageRole): Message role.
+        content (str): Message content.
+    """
+
+    role: MessageRole
+    content: str
+
+
+@dataclass
 class LLMStreamEvent:
     """Event emitted while streaming a model response.
 
     Attributes:
         type (Literal["delta", "final"]): Event type, either an incremental
             delta or the final response.
+        id (str | None): Optional event identifier.
         delta (str | None): Incremental text chunk for delta events.
         response (LLMResponse | None): Complete response for final events.
     """
 
     type: Literal["delta", "final"]
+    id: str | None = None
     delta: str | None = None
     response: LLMResponse | None = None
