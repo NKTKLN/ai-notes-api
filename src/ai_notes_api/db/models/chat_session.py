@@ -116,7 +116,8 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
         cascade="all, delete-orphan",
     )
 
-    memory: Mapped[list["ChatMemory"]] = relationship(
-        back_populates="chat_memories",
+    memory: Mapped["ChatMemory"] = relationship(
+        back_populates="chat_session",
         cascade="all, delete-orphan",
+        uselist=False,
     )

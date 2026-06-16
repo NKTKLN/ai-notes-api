@@ -16,6 +16,7 @@ from ai_notes_api.exceptions.generation_job import GenerationNotFoundError
 from ai_notes_api.integrations import openai_client
 from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
+    ChatMemoryRepository,
     ChatSessionRepository,
     GenerationJobRepository,
     MessageRepository,
@@ -59,6 +60,7 @@ async def _run_generation_job(job_id: UUID) -> None:
         notes_repository = NoteRepository(session=session)
         messages_repository = MessageRepository(session=session)
         sessions_repository = ChatSessionRepository(session=session)
+        memories_repository = ChatMemoryRepository(session=session)
         generation_job_repository = GenerationJobRepository(session=session)
 
         notes_service = NoteService(repository=notes_repository)
@@ -66,7 +68,10 @@ async def _run_generation_job(job_id: UUID) -> None:
             message_repository=messages_repository,
             session_repository=sessions_repository,
         )
-        sessions_service = ChatSessionService(repository=sessions_repository)
+        sessions_service = ChatSessionService(
+            session_repository=sessions_repository,
+            memory_repository=memories_repository,
+        )
 
         generation_job = await generation_job_repository.get_by_id(job_id)
 

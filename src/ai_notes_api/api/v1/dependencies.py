@@ -18,6 +18,7 @@ from ai_notes_api.exceptions import InvalidTokenError
 from ai_notes_api.integrations import openai_client
 from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
+    ChatMemoryRepository,
     ChatSessionRepository,
     GenerationJobRepository,
     MessageRepository,
@@ -133,9 +134,13 @@ def get_chat_session_service(
     Returns:
         ChatSessionService: Configured chat session service instance.
     """
-    repository = ChatSessionRepository(session)
+    sessions = ChatSessionRepository(session)
+    memories = ChatMemoryRepository(session)
 
-    return ChatSessionService(repository=repository)
+    return ChatSessionService(
+        session_repository=sessions,
+        memory_repository=memories,
+    )
 
 
 def get_message_service(
@@ -175,8 +180,12 @@ def get_llm_service(
     notes = NoteRepository(session)
     messages = MessageRepository(session)
     sessions = ChatSessionRepository(session)
+    memories = ChatMemoryRepository(session)
     notes_service = NoteService(notes)
-    sessions_service = ChatSessionService(sessions)
+    sessions_service = ChatSessionService(
+        session_repository=sessions,
+        memory_repository=memories,
+    )
     messages_service = MessageService(messages, sessions)
 
     return LLMService(
@@ -201,7 +210,11 @@ def get_job_service(
     """
     jobs = GenerationJobRepository(session)
     sessions = ChatSessionRepository(session)
-    sessions_service = ChatSessionService(sessions)
+    memories = ChatMemoryRepository(session)
+    sessions_service = ChatSessionService(
+        session_repository=sessions,
+        memory_repository=memories,
+    )
 
     return JobService(
         job_repository=jobs,

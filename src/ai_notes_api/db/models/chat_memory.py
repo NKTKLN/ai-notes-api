@@ -49,7 +49,7 @@ class ChatMemory(Base, TimestampMixin):
     )
 
     chat_session: Mapped["ChatSession"] = relationship(
-        back_populates="chat_memories",
+        back_populates="memory",
     )
 
     summary: Mapped[str] = mapped_column(
