@@ -29,8 +29,10 @@ class Settings(BaseSettings):
         open_ai_embedding_model (str): OpenAI embedding model name.
         open_ai_api_url (str | None): Optional custom OpenAI-compatible API URL.
         open_ai_max_output_tokens (int): Maximum number of output tokens.
-        llm_context_messages_limit (int): Maximum number of context messages sent to
-            the LLM.
+        llm_context_messages_limit (int): Maximum number of context messages
+            sent to the LLM.
+        celery_broker_url (str): Celery broker URL.
+        celery_result_backend (str): Celery result backend URL.
         log_format (str): Format string used by Loguru for log messages.
         database_url (str): Async PostgreSQL database connection URL.
         model_config (SettingsConfigDict): Pydantic settings configuration.
@@ -57,6 +59,9 @@ class Settings(BaseSettings):
     open_ai_max_output_tokens: int = Field(default=700)
 
     llm_context_messages_limit: int = Field(default=20)
+
+    celery_broker_url: str = Field(...)
+    celery_result_backend: str = Field(...)
 
     log_format: str = (
         "<cyan>[{time:DD/MM/YY HH:mm:ss}]</cyan> "
