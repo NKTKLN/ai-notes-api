@@ -193,9 +193,9 @@ def get_llm_service(
 
     return LLMService(
         client=client,
-        notes_service=notes_service,
-        sessions_service=sessions_service,
-        messages_service=messages_service,
+        note_service=notes_service,
+        session_service=sessions_service,
+        message_service=messages_service,
     )
 
 
@@ -217,5 +217,5 @@ def get_job_service(
 
     return JobService(
         job_repository=jobs,
-        sessions_service=sessions_service,
+        session_service=sessions_service,
     )
