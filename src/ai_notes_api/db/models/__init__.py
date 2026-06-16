@@ -4,6 +4,7 @@ This package re-exports the base class used by SQLAlchemy ORM models.
 """
 
 from .base import Base
+from .chat_memory import ChatMemory
 from .chat_session import ChatSession, ChatSessionGenerationStatus
 from .datetime import SoftDeleteMixin, TimestampMixin
 from .generation_job import GenerationJob, GenerationJobStatus
@@ -24,4 +25,5 @@ __all__ = [
     "GenerationJob",
     "GenerationJobStatus",
     "ChatSessionGenerationStatus",
+    "ChatMemory",
 ]
