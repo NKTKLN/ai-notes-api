@@ -189,13 +189,13 @@ def get_llm_service(
     sessions = ChatSessionRepository(session)
     notes_service = NoteService(notes)
     sessions_service = ChatSessionService(sessions)
-    message_service = MessageService(messages, sessions)
+    messages_service = MessageService(messages, sessions)
 
     return LLMService(
         client=client,
         notes_service=notes_service,
         sessions_service=sessions_service,
-        message_service=message_service,
+        messages_service=messages_service,
     )
 
 

@@ -131,12 +131,13 @@ class LLMService:
         Raises:
             ChatSessionNotFoundError: If no accessible chat session exists.
         """
+        tools_registry = build_registry(notes_service=self.notes, user_id=user_id)
+        tools = tools_registry.get_tools()
+
         await self.messages.create_user_message(
             user_id=user_id,
             data=message,
         )
-
-        tools = build_registry(notes_service=self.notes, user_id=user_id)
 
         context_messages = await self.messages.get_context_messages(
             user_id=user_id,
@@ -146,10 +147,34 @@ class LLMService:
 
         input_data = PromptBuilder.build(context_messages)
 
-        llm_response = await self.client.create_response(
-            input_data=input_data,
-            tools=tools,
-        )
+        while True:
+            llm_response = await self.client.create_response(
+                input_data=input_data,
+                tools=tools,
+            )
+
+            tool_calls = llm_response.tool_calls
+
+            if not tool_calls:
+                break
+
+            tool_outputs = [*input_data, *llm_response.output_items]
+
+            for tool_call in tool_calls:
+                tool_result = await tools_registry.call(
+                    name=tool_call.name,
+                    arguments=tool_call.arguments,
+                )
+
+                tool_outputs.append(
+                    {
+                        "type": "function_call_output",
+                        "call_id": tool_call.call_id,
+                        "output": tool_result,
+                    }
+                )
+
+            input_data = tool_outputs
 
         assistant_message = await self._create_assistant_message_from_response(
             user_id=user_id,
@@ -275,12 +300,13 @@ class LLMService:
         )
 
         try:
+            tools_registry = build_registry(notes_service=self.notes, user_id=user_id)
+            tools = tools_registry.get_tools()
+
             await self.messages.create_user_message(
                 user_id=user_id,
                 data=message,
             )
-
-            tools = build_registry(notes_service=self.notes, user_id=user_id)
 
             context_messages = await self.messages.get_context_messages(
                 user_id=user_id,
@@ -290,18 +316,52 @@ class LLMService:
 
             input_data = PromptBuilder.build(context_messages)
 
-            async for event in self.client.stream_response_events(
-                input_data=input_data,
-                tools=tools,
-            ):
-                if event.type == "final" and event.response is not None:
-                    await self._create_assistant_message_from_response(
-                        user_id=user_id,
-                        session_id=message.session_id,
-                        llm_response=event.response,
+            llm_response: LLMResponse | None = None
+
+            while True:
+                llm_response = None
+
+                async for event in self.client.stream_response_events(
+                    input_data=input_data,
+                    tools=tools,
+                ):
+                    if event.type == "final" and event.response is not None:
+                        llm_response = event.response
+
+                    yield event
+
+                if llm_response is None:
+                    break
+
+                tool_calls = llm_response.tool_calls
+
+                if not tool_calls:
+                    break
+
+                tool_outputs = [*input_data, *llm_response.output_items]
+
+                for tool_call in tool_calls:
+                    tool_result = await tools_registry.call(
+                        name=tool_call.name,
+                        arguments=tool_call.arguments,
                     )
 
-                yield event
+                    tool_outputs.append(
+                        {
+                            "type": "function_call_output",
+                            "call_id": tool_call.call_id,
+                            "output": tool_result,
+                        }
+                    )
+
+                input_data = tool_outputs
+
+            if llm_response is not None:
+                await self._create_assistant_message_from_response(
+                    user_id=user_id,
+                    session_id=message.session_id,
+                    llm_response=llm_response,
+                )
 
         finally:
             await self.sessions.release_generation_lock(
