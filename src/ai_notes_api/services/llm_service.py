@@ -18,6 +18,8 @@ from ai_notes_api.schemas import (
 )
 from ai_notes_api.services.chat_session import ChatSessionService
 from ai_notes_api.services.message import MessageService
+from ai_notes_api.services.note import NoteService
+from ai_notes_api.tools import build_registry
 
 
 class LLMService:
@@ -25,27 +27,33 @@ class LLMService:
 
     Args:
         client (LLMClient): LLM client used to generate model responses.
-        sessions (ChatSessionService): Chat session service used to validate
-            access and manage generation locks.
-        messages (MessageService): Message service used to persist chat messages.
+        note_service (NoteService): Note service used by LLM tools.
+        session_service (ChatSessionService): Chat session service used to
+            validate access and manage generation locks.
+        message_service (MessageService): Message service used to persist chat
+            messages.
     """
 
     def __init__(
         self,
         client: LLMClient,
-        sessions: ChatSessionService,
-        messages: MessageService,
+        note_service: NoteService,
+        session_service: ChatSessionService,
+        message_service: MessageService,
     ) -> None:
         """Initialize the LLM service.
 
         Args:
             client (LLMClient): LLM client used by the service.
-            sessions (ChatSessionService): Chat session service used by the service.
-            messages (MessageService): Message service used by the service.
+            note_service (NoteService): Note service used by LLM tools.
+            session_service (ChatSessionService): Chat session service used by
+                the service.
+            message_service (MessageService): Message service used by the service.
         """
         self.client = client
-        self.sessions = sessions
-        self.messages = messages
+        self.notes = note_service
+        self.sessions = session_service
+        self.messages = message_service
 
     def _get_value(self, source: Any, name: str) -> Any:
         """Return a value from an object or dictionary.
@@ -123,6 +131,9 @@ class LLMService:
         Raises:
             ChatSessionNotFoundError: If no accessible chat session exists.
         """
+        tools_registry = build_registry(notes_service=self.notes, user_id=user_id)
+        tools = tools_registry.get_tools()
+
         await self.messages.create_user_message(
             user_id=user_id,
             data=message,
@@ -136,7 +147,34 @@ class LLMService:
 
         input_data = PromptBuilder.build(context_messages)
 
-        llm_response = await self.client.create_response(input_data)
+        while True:
+            llm_response = await self.client.create_response(
+                input_data=input_data,
+                tools=tools,
+            )
+
+            tool_calls = llm_response.tool_calls
+
+            if not tool_calls:
+                break
+
+            tool_outputs = [*input_data, *llm_response.output_items]
+
+            for tool_call in tool_calls:
+                tool_result = await tools_registry.call(
+                    name=tool_call.name,
+                    arguments=tool_call.arguments,
+                )
+
+                tool_outputs.append(
+                    {
+                        "type": "function_call_output",
+                        "call_id": tool_call.call_id,
+                        "output": tool_result,
+                    }
+                )
+
+            input_data = tool_outputs
 
         assistant_message = await self._create_assistant_message_from_response(
             user_id=user_id,
@@ -262,6 +300,9 @@ class LLMService:
         )
 
         try:
+            tools_registry = build_registry(notes_service=self.notes, user_id=user_id)
+            tools = tools_registry.get_tools()
+
             await self.messages.create_user_message(
                 user_id=user_id,
                 data=message,
@@ -275,15 +316,52 @@ class LLMService:
 
             input_data = PromptBuilder.build(context_messages)
 
-            async for event in self.client.stream_response_events(input_data):
-                if event.type == "final" and event.response is not None:
-                    await self._create_assistant_message_from_response(
-                        user_id=user_id,
-                        session_id=message.session_id,
-                        llm_response=event.response,
+            llm_response: LLMResponse | None = None
+
+            while True:
+                llm_response = None
+
+                async for event in self.client.stream_response_events(
+                    input_data=input_data,
+                    tools=tools,
+                ):
+                    if event.type == "final" and event.response is not None:
+                        llm_response = event.response
+
+                    yield event
+
+                if llm_response is None:
+                    break
+
+                tool_calls = llm_response.tool_calls
+
+                if not tool_calls:
+                    break
+
+                tool_outputs = [*input_data, *llm_response.output_items]
+
+                for tool_call in tool_calls:
+                    tool_result = await tools_registry.call(
+                        name=tool_call.name,
+                        arguments=tool_call.arguments,
                     )
 
-                yield event
+                    tool_outputs.append(
+                        {
+                            "type": "function_call_output",
+                            "call_id": tool_call.call_id,
+                            "output": tool_result,
+                        }
+                    )
+
+                input_data = tool_outputs
+
+            if llm_response is not None:
+                await self._create_assistant_message_from_response(
+                    user_id=user_id,
+                    session_id=message.session_id,
+                    llm_response=llm_response,
+                )
 
         finally:
             await self.sessions.release_generation_lock(

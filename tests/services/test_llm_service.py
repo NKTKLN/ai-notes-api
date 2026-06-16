@@ -19,6 +19,7 @@ from ai_notes_api.schemas import (
 from ai_notes_api.services.chat_session import ChatSessionService
 from ai_notes_api.services.llm_service import LLMService
 from ai_notes_api.services.message import MessageService
+from ai_notes_api.services.note import NoteService
 
 TEST_USER_ID = UUID("11111111-1111-1111-1111-111111111111")
 TEST_SESSION_ID = UUID("22222222-2222-2222-2222-222222222222")
@@ -140,24 +141,46 @@ class FakeLLMClient:
         self.events: list[LLMStreamEvent] = []
         self.create_input: Any = None
         self.stream_input: Any = None
+        self.create_tools: Any = None
+        self.stream_tools: Any = None
 
     async def create_response(
         self,
         input_data: str | list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
     ) -> LLMResponse:
         """Return the configured response."""
         self.create_input = input_data
+        self.create_tools = tools
         assert self.response is not None
         return self.response
 
     async def stream_response_events(
         self,
         input_data: str | list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
     ) -> AsyncGenerator[LLMStreamEvent]:
         """Yield the configured stream events."""
         self.stream_input = input_data
+        self.stream_tools = tools
         for event in self.events:
             yield event
+
+
+class FakeNoteService:
+    """Fake note service used to build the LLM tool registry."""
+
+    def __init__(self) -> None:
+        """Initialize the fake note service."""
+        self.notes: list[Any] = []
+
+    async def get_notes_list(
+        self,
+        user_id: UUID,  # noqa: ARG002
+        filters: Any,  # noqa: ARG002
+    ) -> list[Any]:
+        """Return the configured notes."""
+        return self.notes
 
 
 def _build_service() -> tuple[FakeLLMClient, FakeMessageService, LLMService]:
@@ -165,11 +188,13 @@ def _build_service() -> tuple[FakeLLMClient, FakeMessageService, LLMService]:
     client = FakeLLMClient()
     messages = FakeMessageService()
     sessions = FakeChatSessionService()
+    notes = FakeNoteService()
 
     service = LLMService(
         client=cast(LLMClient, client),
-        sessions=cast(ChatSessionService, sessions),
-        messages=cast(MessageService, messages),
+        note_service=cast(NoteService, notes),
+        session_service=cast(ChatSessionService, sessions),
+        message_service=cast(MessageService, messages),
     )
 
     return client, messages, service
