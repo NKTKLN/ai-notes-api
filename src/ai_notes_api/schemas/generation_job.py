@@ -18,11 +18,11 @@ class GenerationJobCreateSchema(BaseModel):
 
     Attributes:
         session_id (UUID): Unique chat session identifier.
-        input_message (str): User input message used for generation.
+        message (str): User input message used for generation.
     """
 
     session_id: UUID
-    input_message: str = Field(min_length=1, max_length=10_000)
+    message: str = Field(min_length=1, max_length=10_000)
 
 
 class GenerationJobResponseSchema(BaseModel):
