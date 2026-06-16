@@ -228,11 +228,15 @@ class ChatSessionService:
             session_id (UUID): Unique chat session identifier.
 
         Raises:
+            ChatSessionNotFoundError: If no accessible chat session exists.
             GenerationInProgressError: If a QUEUED or RUNNING job already exists.
         """
-        session = await self.repository.get_by_id_for_user(user_id, session_id)
+        chat_session = await self.repository.get_by_id_for_user(user_id, session_id)
 
-        if session.generation_status == ChatSessionGenerationStatus.RUNNING:
+        if chat_session is None:
+            raise ChatSessionNotFoundError()
+
+        if chat_session.generation_status == ChatSessionGenerationStatus.RUNNING:
             raise GenerationInProgressError()
 
     async def ensure_generation_lock_owner(
