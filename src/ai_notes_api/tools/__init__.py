@@ -8,6 +8,7 @@ from .exceptions import (
     ToolAlreadyRegisteredError,
     ToolHandlerNotCallableError,
 )
+from .factory import build_registry
 from .models import ToolSpec
 from .registry import ToolRegistry
 
@@ -16,4 +17,5 @@ __all__ = [
     "ToolSpec",
     "ToolAlreadyRegisteredError",
     "ToolHandlerNotCallableError",
+    "build_registry",
 ]
