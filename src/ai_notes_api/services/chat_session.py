@@ -27,8 +27,10 @@ class ChatSessionService:
     """Service for chat session-related business operations.
 
     Args:
-        repository (ChatSessionRepository): Repository used to perform chat
-            session database operations.
+        session_repository (ChatSessionRepository): Repository used to perform
+            chat session database operations.
+        memory_repository (ChatMemoryRepository): Repository used to perform
+            chat memory database operations.
     """
 
     def __init__(
@@ -39,8 +41,10 @@ class ChatSessionService:
         """Initialize the chat session service.
 
         Args:
-            repository (ChatSessionRepository): Chat session repository used by
-                the service.
+            session_repository (ChatSessionRepository): Chat session repository
+                used by the service.
+            memory_repository (ChatMemoryRepository): Chat memory repository
+                used by the service.
         """
         self.sessions = session_repository
         self.memories = memory_repository
