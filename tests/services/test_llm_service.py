@@ -192,9 +192,9 @@ def _build_service() -> tuple[FakeLLMClient, FakeMessageService, LLMService]:
 
     service = LLMService(
         client=cast(LLMClient, client),
-        notes_service=cast(NoteService, notes),
-        sessions_service=cast(ChatSessionService, sessions),
-        messages_service=cast(MessageService, messages),
+        note_service=cast(NoteService, notes),
+        session_service=cast(ChatSessionService, sessions),
+        message_service=cast(MessageService, messages),
     )
 
     return client, messages, service
