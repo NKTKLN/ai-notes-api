@@ -6,34 +6,20 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-import ai_notes_api.llm.client as client_module
 from ai_notes_api.llm.client import LLMClient
 
 
 @pytest.fixture
-def fake_openai_client(monkeypatch: pytest.MonkeyPatch) -> Mock:
+def fake_openai_client() -> Mock:
     """Return a mocked OpenAI async client.
-
-    Args:
-        monkeypatch (pytest.MonkeyPatch): Pytest monkeypatch fixture.
 
     Returns:
         Mock: Mocked OpenAI async client.
     """
     fake_client = Mock()
-    fake_client.close = AsyncMock()
 
     fake_client.responses = Mock()
     fake_client.responses.create = AsyncMock()
-
-    fake_client.embeddings = Mock()
-    fake_client.embeddings.create = AsyncMock()
-
-    monkeypatch.setattr(
-        client_module,
-        "AsyncOpenAI",
-        Mock(return_value=fake_client),
-    )
 
     return fake_client
 
@@ -121,7 +107,7 @@ class FakeStream:
 
 def test_build_response_kwargs_minimal() -> None:
     """Test response kwargs building with minimal input."""
-    client = LLMClient()
+    client = LLMClient(Mock())
 
     kwargs = client._build_response_kwargs(input_data="hello")
 
@@ -136,7 +122,7 @@ def test_build_response_kwargs_minimal() -> None:
 
 def test_build_response_kwargs_with_optional_params() -> None:
     """Test response kwargs building with optional parameters."""
-    client = LLMClient()
+    client = LLMClient(Mock())
 
     tools = [{"type": "function", "name": "search"}]
     text_format = {"type": "json_schema"}
@@ -160,7 +146,7 @@ def test_build_response_kwargs_with_optional_params() -> None:
 
 def test_map_response_maps_text_and_tool_calls() -> None:
     """Test mapping response text and tool calls."""
-    client = LLMClient()
+    client = LLMClient(Mock())
 
     function_call = SimpleNamespace(
         type="function_call",
@@ -197,7 +183,7 @@ async def test_create_response_calls_openai_and_maps_response(
     raw_response = SimpleNamespace(output_text="Done", output=[])
     fake_openai_client.responses.create.return_value = raw_response
 
-    client = LLMClient()
+    client = LLMClient(fake_openai_client)
 
     response = await client.create_response(
         input_data="Prompt",
@@ -222,7 +208,7 @@ async def test_get_text_response_returns_only_text(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that text response helper returns only text."""
-    client = LLMClient()
+    client = LLMClient(Mock())
     create_response_mock = AsyncMock(
         return_value=SimpleNamespace(text="Only text"),
     )
@@ -243,58 +229,13 @@ async def test_get_text_response_returns_only_text(
 
 
 @pytest.mark.asyncio
-async def test_create_embedding_returns_empty_for_empty_input(
-    fake_openai_client: Mock,
-) -> None:
-    """Test that embedding creation returns an empty list for empty input."""
-    client = LLMClient()
-
-    result = await client.create_embedding([])
-
-    assert result == []
-    fake_openai_client.embeddings.create.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_create_embedding_calls_openai(fake_openai_client: Mock) -> None:
-    """Test embedding creation through the OpenAI client."""
-    fake_openai_client.embeddings.create.return_value = SimpleNamespace(
-        data=[
-            SimpleNamespace(embedding=[0.1, 0.2]),
-            SimpleNamespace(embedding=[0.3, 0.4]),
-        ]
-    )
-
-    client = LLMClient()
-
-    result = await client.create_embedding(["one", "two"])
-
-    assert result == [[0.1, 0.2], [0.3, 0.4]]
-    fake_openai_client.embeddings.create.assert_awaited_once()
-
-    call_kwargs = fake_openai_client.embeddings.create.await_args.kwargs
-    assert call_kwargs["input"] == ["one", "two"]
-    assert call_kwargs["encoding_format"] == "float"
-
-
-@pytest.mark.asyncio
-async def test_aclose_closes_underlying_client(fake_openai_client: Mock) -> None:
-    """Test that closing the LLM client closes the underlying OpenAI client."""
-    client = LLMClient()
-
-    await client.aclose()
-
-    fake_openai_client.close.assert_awaited_once()
-
-
-@pytest.mark.asyncio
 async def test_stream_response_events_yields_deltas_and_final(
     fake_openai_client: Mock,
 ) -> None:
     """Test streaming response events with deltas and final response."""
     fake_openai_client.responses.stream.return_value = FakeStream()
 
-    client = LLMClient()
+    client = LLMClient(fake_openai_client)
 
     events = [event async for event in client.stream_response_events("Prompt")]
 
