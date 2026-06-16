@@ -126,6 +126,11 @@ def _build_service() -> tuple[FakeLLMClient, FakeMessageService, LLMService]:
     return client, messages, service
 
 
+def _user_message(content: str = "Hello") -> UserMessageCreateSchema:
+    """Return a user message create schema for the test session."""
+    return UserMessageCreateSchema(session_id=TEST_SESSION_ID, content=content)
+
+
 def _raw_metadata() -> SimpleNamespace:
     """Return a raw provider response carrying token and model metadata."""
     return SimpleNamespace(
@@ -145,8 +150,7 @@ async def test_generate_response_persists_and_returns_metadata() -> None:
 
     result = await service.generate_response(
         user_id=TEST_USER_ID,
-        session_id=TEST_SESSION_ID,
-        message="Hello",
+        message=_user_message(),
     )
 
     assert messages.created_user_message is not None
@@ -187,8 +191,7 @@ async def test_generate_response_builds_prompt_from_context() -> None:
 
     await service.generate_response(
         user_id=TEST_USER_ID,
-        session_id=TEST_SESSION_ID,
-        message="Hello",
+        message=_user_message(),
     )
 
     assert isinstance(client.create_input, list)
@@ -204,8 +207,7 @@ async def test_generate_response_uses_context_messages_limit() -> None:
 
     await service.generate_response(
         user_id=TEST_USER_ID,
-        session_id=TEST_SESSION_ID,
-        message="Hello",
+        message=_user_message(),
     )
 
     assert messages.context_limit == settings.llm_context_messages_limit
@@ -219,8 +221,7 @@ async def test_generate_response_handles_missing_metadata() -> None:
 
     result = await service.generate_response(
         user_id=TEST_USER_ID,
-        session_id=TEST_SESSION_ID,
-        message="Hello",
+        message=_user_message(),
     )
 
     assistant_data = messages.created_assistant_data[0]
@@ -244,8 +245,7 @@ async def test_generate_response_propagates_session_not_found() -> None:
     with pytest.raises(ChatSessionNotFoundError):
         await service.generate_response(
             user_id=TEST_USER_ID,
-            session_id=TEST_SESSION_ID,
-            message="Hello",
+            message=_user_message(),
         )
 
     assert client.create_input is None
@@ -267,8 +267,7 @@ async def test_stream_response_yields_events_and_persists_final() -> None:
         event
         async for event in service.stream_response(
             user_id=TEST_USER_ID,
-            session_id=TEST_SESSION_ID,
-            message="Hello",
+            message=_user_message(),
         )
     ]
 
@@ -294,8 +293,7 @@ async def test_stream_response_without_final_does_not_persist() -> None:
         event
         async for event in service.stream_response(
             user_id=TEST_USER_ID,
-            session_id=TEST_SESSION_ID,
-            message="Hello",
+            message=_user_message(),
         )
     ]
 
@@ -315,8 +313,7 @@ async def test_stream_response_final_without_response_does_not_persist() -> None
         event
         async for event in service.stream_response(
             user_id=TEST_USER_ID,
-            session_id=TEST_SESSION_ID,
-            message="Hello",
+            message=_user_message(),
         )
     ]
 
@@ -334,8 +331,7 @@ async def test_stream_response_propagates_session_not_found() -> None:
     with pytest.raises(ChatSessionNotFoundError):
         async for _ in service.stream_response(
             user_id=TEST_USER_ID,
-            session_id=TEST_SESSION_ID,
-            message="Hello",
+            message=_user_message(),
         ):
             pass
 
