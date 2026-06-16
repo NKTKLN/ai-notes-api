@@ -16,7 +16,8 @@ from ai_notes_api.schemas import (
     ChatCompletionResponseSchema,
     UserMessageCreateSchema,
 )
-from ai_notes_api.services import ChatSessionService, MessageService
+from ai_notes_api.services.chat_session import ChatSessionService
+from ai_notes_api.services.message import MessageService
 
 
 class LLMService:

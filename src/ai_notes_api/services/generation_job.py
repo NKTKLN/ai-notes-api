@@ -8,7 +8,7 @@ session invariant shared by asynchronous and streaming generation paths.
 from uuid import UUID
 
 from ai_notes_api.db.models import GenerationJob, GenerationJobStatus
-from ai_notes_api.exceptions import GenerationInProgressError, GenerationNotFoundError
+from ai_notes_api.exceptions import GenerationNotFoundError
 from ai_notes_api.repositories import GenerationJobListFilters, GenerationJobRepository
 from ai_notes_api.schemas import GenerationJobCreateSchema, GenerationJobUpdateSchema
 from ai_notes_api.services.chat_session import ChatSessionService
@@ -69,14 +69,11 @@ class JobService:
 
         generation_job = await self.jobs.create(generation_job_data)
 
-        lock_acquired = await self.sessions.acquire_generation_lock(
+        await self.sessions.acquire_generation_lock(
             user_id=user_id,
             session_id=data.session_id,
             generation_id=generation_job.id,
         )
-
-        if not lock_acquired:
-            raise GenerationInProgressError()
 
         return generation_job
 
