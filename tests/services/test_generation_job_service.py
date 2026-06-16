@@ -69,8 +69,7 @@ class FakeGenerationJobRepository:
 
     async def create(self, generation_job: GenerationJob) -> GenerationJob:
         """Create generation job."""
-        if generation_job.id is None:
-            generation_job.id = TEST_JOB_ID
+        generation_job.id = TEST_JOB_ID
 
         self.created_job = generation_job
         self.jobs[generation_job.id] = generation_job
