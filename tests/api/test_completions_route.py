@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import AsyncGenerator
+from typing import Protocol
 from uuid import UUID
 
 import pytest
@@ -33,6 +34,13 @@ def create_test_user() -> User:
     )
 
 
+class MessageLike(Protocol):
+    """Message shape passed to the LLM service."""
+
+    session_id: UUID
+    content: str
+
+
 class FakeLLMService:
     """Fake LLM service yielding preconfigured stream events.
 
@@ -46,13 +54,13 @@ class FakeLLMService:
         """Initialize the fake LLM service."""
         self.events: list[LLMStreamEvent] = []
         self.raise_exc: Exception | None = None
-        self.called_with: tuple[UUID, object] | None = None
+        self.called_with: tuple[UUID, MessageLike] | None = None
 
     def stream_response(
         self,
         *,
         user_id: UUID,
-        message: object,
+        message: MessageLike,
     ) -> AsyncGenerator[LLMStreamEvent]:
         """Record the call and return an async generator of events.
 
