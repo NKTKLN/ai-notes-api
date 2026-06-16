@@ -4,6 +4,7 @@ This module provides business logic for generating and streaming LLM responses.
 """
 
 from collections.abc import AsyncGenerator
+from typing import Any
 from uuid import UUID
 
 from ai_notes_api.core import settings
@@ -37,6 +38,24 @@ class LLMService:
         self.messages = messages
         self.prompt_builder = PromptBuilder()
 
+    def _get_value(self, source: Any, name: str) -> Any:
+        """Return a value from an object or dictionary.
+
+        Args:
+            source (Any): Object or dictionary to read from.
+            name (str): Attribute or dictionary key name.
+
+        Returns:
+            Any: Resolved value if found; otherwise, None.
+        """
+        if source is None:
+            return None
+
+        if isinstance(source, dict):
+            return source.get(name)
+
+        return getattr(source, name, None)
+
     async def _create_assistant_message_from_response(
         self,
         user_id: UUID,
@@ -57,20 +76,21 @@ class LLMService:
         Raises:
             ChatSessionNotFoundError: If no accessible chat session exists.
         """
+        raw_response = llm_response.raw
+        usage = self._get_value(raw_response, "usage")
+        model_name = self._get_value(raw_response, "model")
+        provider = self._get_value(raw_response, "provider")
+
         return await self.messages.create_assistant_message(
             user_id=user_id,
             data=AssistantMessageCreateSchema(
                 session_id=session_id,
                 content=llm_response.text,
-                provider=getattr(llm_response.raw, "provider", None),
-                model_name=getattr(llm_response.raw, "model_name", None),
-                prompt_tokens=getattr(llm_response.raw, "prompt_tokens", None),
-                completion_tokens=getattr(
-                    llm_response.raw,
-                    "completion_tokens",
-                    None,
-                ),
-                total_tokens=getattr(llm_response.raw, "total_tokens", None),
+                model_name=model_name,
+                provider=provider,
+                prompt_tokens=self._get_value(usage, "input_tokens"),
+                completion_tokens=self._get_value(usage, "output_tokens"),
+                total_tokens=self._get_value(usage, "total_tokens"),
             ),
         )
 
