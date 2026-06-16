@@ -135,10 +135,12 @@ def _raw_metadata() -> SimpleNamespace:
     """Return a raw provider response carrying token and model metadata."""
     return SimpleNamespace(
         provider="openai",
-        model_name="gpt-4",
-        prompt_tokens=10,
-        completion_tokens=20,
-        total_tokens=30,
+        model="gpt-4",
+        usage=SimpleNamespace(
+            input_tokens=10,
+            output_tokens=20,
+            total_tokens=30,
+        ),
     )
 
 
