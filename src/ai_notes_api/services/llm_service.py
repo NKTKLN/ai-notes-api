@@ -175,8 +175,6 @@ class LLMService:
             ChatSessionNotFoundError: If no accessible chat session exists.
             GenerationNotFoundError: If the generation job does not own the lock.
         """
-        generation_id = uuid4()
-
         await self.sessions.ensure_generation_lock_owner(
             user_id, message.session_id, generation_id
         )
