@@ -16,25 +16,19 @@ from ai_notes_api.llm.models import LLMResponse, LLMStreamEvent, LLMToolCall
 
 
 class LLMClient:
-    """LLM client backed by the OpenAI API."""
+    """LLM client backed by the OpenAI API.
 
-    def __init__(self) -> None:
-        """Initialize the OpenAI client from application settings."""
-        self.client = AsyncOpenAI(
-            api_key=settings.open_ai_api_key,
-            base_url=settings.open_ai_api_url,
-        )
+    Args:
+        client (AsyncOpenAI): Shared asynchronous OpenAI client.
+    """
 
-        logger.debug(
-            "LLM client initialized: base_url={}, model={}",
-            settings.open_ai_api_url,
-            settings.open_ai_model,
-        )
+    def __init__(self, client: AsyncOpenAI) -> None:
+        """Initialize the LLM client.
 
-    async def aclose(self) -> None:
-        """Close underlying async HTTP resources."""
-        await self.client.close()
-        logger.debug("Async LLM client closed")
+        Args:
+            client (AsyncOpenAI): Shared asynchronous OpenAI client.
+        """
+        self.client = client
 
     def _build_response_kwargs(  # noqa: PLR0913
         self,
@@ -205,36 +199,6 @@ class LLMClient:
         )
 
         return response.text
-
-    async def create_embedding(self, texts: list[str]) -> list[list[float]]:
-        """Create embedding vectors for the given texts.
-
-        Args:
-            texts (list[str]): Texts to embed.
-
-        Returns:
-            list[list[float]]: Embedding vector for each input text, or an
-            empty list if no texts are provided.
-        """
-        if not texts:
-            logger.debug("No texts provided for embedding; returning empty list")
-            return []
-
-        logger.debug(
-            "Creating embeddings: count={}, model={}",
-            len(texts),
-            settings.open_ai_embedding_model,
-        )
-
-        response = await self.client.embeddings.create(
-            model=settings.open_ai_embedding_model,
-            input=texts,
-            encoding_format="float",
-        )
-
-        logger.info("Embeddings created: count={}", len(response.data))
-
-        return [item.embedding for item in response.data]
 
     async def stream_response_events(
         self,
