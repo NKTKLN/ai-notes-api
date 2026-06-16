@@ -4,10 +4,10 @@ This module defines FastAPI dependencies for constructing application services,
 resolving authenticated users, and accessing shared application clients.
 """
 
-from typing import Annotated, cast
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Request
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from ai_notes_api.core import decode_access_token
 from ai_notes_api.db.models import User
 from ai_notes_api.db.session import get_db
 from ai_notes_api.exceptions import InvalidTokenError
+from ai_notes_api.integrations import openai_client
 from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
     ChatSessionRepository,
@@ -158,32 +159,19 @@ def get_message_service(
     )
 
 
-def get_llm_client(request: Request) -> LLMClient:
-    """Provide the shared LLM client instance.
-
-    Args:
-        request (Request): FastAPI request object containing application state.
-
-    Returns:
-        LLMClient: Shared LLM client instance.
-    """
-    return cast(LLMClient, request.app.state.llm_client)
-
-
 def get_llm_service(
     session: Annotated[AsyncSession, Depends(get_db)],
-    client: Annotated[LLMClient, Depends(get_llm_client)],
 ) -> LLMService:
     """Provide an LLM service instance.
 
     Args:
         session (AsyncSession): Asynchronous database session provided by FastAPI
             dependency injection.
-        client (LLMClient): Shared LLM client dependency.
 
     Returns:
         LLMService: Configured LLM service instance.
     """
+    client = LLMClient(openai_client)
     notes = NoteRepository(session)
     messages = MessageRepository(session)
     sessions = ChatSessionRepository(session)
