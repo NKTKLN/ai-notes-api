@@ -9,6 +9,12 @@
 * [Docker](https://docs.docker.com/get-docker/)
 * [Task](https://taskfile.dev/)
 
+Runtime services:
+
+* [PostgreSQL](https://www.postgresql.org/) - primary data store
+* [Redis](https://redis.io/) - Celery broker and result backend
+* [Celery](https://docs.celeryq.dev/) - background worker for async LLM generation jobs
+
 ## 📌 API endpoints
 
 The API is mounted under `/api/v1`.
@@ -26,6 +32,30 @@ Notes endpoints (authenticated):
 * `GET /api/v1/notes/{note_id}` - get a note by ID
 * `PATCH /api/v1/notes/{note_id}` - update a note by ID
 * `DELETE /api/v1/notes/{note_id}` - delete a note by ID
+
+Chat session endpoints (authenticated):
+
+* `POST /api/v1/chat/sessions` - create a chat session
+* `GET /api/v1/chat/sessions` - list chat sessions with pagination and filters
+* `GET /api/v1/chat/sessions/{session_id}` - get a chat session by ID
+* `PATCH /api/v1/chat/sessions/{session_id}` - update a chat session by ID
+* `DELETE /api/v1/chat/sessions/{session_id}` - delete a chat session by ID
+* `GET /api/v1/chat/sessions/{session_id}/messages` - list messages in a session
+
+Chat message endpoints (authenticated):
+
+* `GET /api/v1/chat/messages/{message_id}` - get a message by ID
+* `DELETE /api/v1/chat/messages/{message_id}` - delete a message by ID
+
+Chat completion endpoints (authenticated):
+
+* `POST /api/v1/chat/completions/stream` - stream an assistant response over SSE
+* `POST /api/v1/chat/completions/jobs` - enqueue an async LLM generation job (Celery)
+* `GET /api/v1/chat/completions/jobs/{job_id}` - get the status and result of a generation job
+
+Health endpoint:
+
+* `GET /api/v1/health` - service health check
 
 Authentication details:
 
@@ -55,6 +85,14 @@ Required variables:
 * `JWT_SECRET_KEY` - secret key for signing JWT tokens
 * `JWT_ALGORITHM` - JWT signing algorithm, default `HS256`
 * `ACCESS_TOKEN_EXPIRE_MINUTES` - token lifetime in minutes
+* `OPEN_AI_API_KEY` - OpenAI API key
+* `OPEN_AI_MODEL` - chat completion model, e.g. `gpt-4o-mini`
+* `OPEN_AI_EMBEDDING_MODEL` - embedding model, e.g. `text-embedding-3-small`
+* `OPEN_AI_API_URL` - optional custom OpenAI-compatible base URL
+* `OPEN_AI_MAX_OUTPUT_TOKENS` - max tokens per completion
+* `LLM_CONTEXT_MESSAGES_LIMIT` - number of recent messages sent as context
+* `CELERY_BROKER_URL` - Redis URL for the Celery broker
+* `CELERY_RESULT_BACKEND` - Redis URL for the Celery result backend
 
 The database connection URL is composed automatically from the `POSTGRES_*` values.
 
@@ -76,6 +114,12 @@ task init
 
 ```bash
 task run
+```
+
+4. Start the Celery worker (requires a running Redis) for async generation jobs:
+
+```bash
+task run-celery
 ```
 
 ## 🐳 Docker
