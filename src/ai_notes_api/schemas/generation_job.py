@@ -55,6 +55,32 @@ class GenerationJobResponseSchema(BaseModel):
     finished_at: datetime | None = None
 
 
+class GenerationJobUpdateSchema(BaseModel):
+    """Schema for updating a generation job.
+
+    Attributes:
+        status (GenerationJobStatus | None): Optional generation job status.
+        output_message_id (UUID | None): Optional identifier of the generated
+            assistant message.
+        error (str | None): Optional error message if generation failed.
+        started_at (datetime | None): Optional date and time when generation
+            started.
+        finished_at (datetime | None): Optional date and time when generation
+            finished.
+    """
+
+    status: GenerationJobStatus | None = None
+    output_message_id: UUID | None = None
+
+    error: str | None = Field(
+        default=None,
+        max_length=10_000,
+    )
+
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+
+
 class GenerationJobListResponseSchema(BaseModel):
     """Schema for returning a paginated list of generation jobs.
 

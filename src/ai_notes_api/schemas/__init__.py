@@ -18,6 +18,7 @@ from .generation_job import (
     GenerationJobListResponseSchema,
     GenerationJobResponseSchema,
     GenerationJobStatus,
+    GenerationJobUpdateSchema,
 )
 from .message import (
     AssistantMessageCreateSchema,
@@ -64,4 +65,5 @@ __all__ = [
     "GenerationJobListQuerySchema",
     "GenerationJobListResponseSchema",
     "GenerationJobResponseSchema",
+    "GenerationJobUpdateSchema",
 ]
