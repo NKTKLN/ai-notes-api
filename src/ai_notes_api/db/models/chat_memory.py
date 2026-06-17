@@ -15,6 +15,7 @@ from ai_notes_api.db.models.datetime import TimestampMixin
 
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_session import ChatSession
+    from ai_notes_api.db.models.message import Message
 
 
 class ChatMemory(Base, TimestampMixin):
@@ -30,6 +31,10 @@ class ChatMemory(Base, TimestampMixin):
         facts (Mapped[list[dict[str, Any]]]): Facts extracted from the chat session.
         is_summarizing (Mapped[bool]): Whether chat memory summarization is
             currently in progress.
+        last_summarized_message_id (Mapped[UUID | None]): Identifier of the last
+            message included in the chat memory summary, if any.
+        last_summarized_message (Mapped[Message | None]): Last message included
+            in the chat memory summary, if any.
     """
 
     __tablename__ = "chat_memories"
@@ -70,4 +75,18 @@ class ChatMemory(Base, TimestampMixin):
         Boolean,
         default=False,
         nullable=False,
+    )
+
+    last_summarized_message_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey(
+            "messages.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        default=None,
+        index=True,
+    )
+
+    last_summarized_message: Mapped["Message | None"] = relationship(
+        foreign_keys=[last_summarized_message_id],
     )

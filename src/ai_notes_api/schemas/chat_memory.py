@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 
 class ChatMemoryResponseSchema(BaseModel):
@@ -21,6 +21,8 @@ class ChatMemoryResponseSchema(BaseModel):
         facts (list[dict[str, Any]]): Structured facts extracted from the chat memory.
         is_summarizing (bool): Whether chat memory summarization is currently in
             progress.
+        last_summarized_message (UUID | None): Unique identifier of the last
+            message included in the chat memory summary, if any.
         created_at (datetime): Date and time when the chat memory was created.
         updated_at (datetime): Date and time when the chat memory was last updated.
     """
@@ -31,30 +33,7 @@ class ChatMemoryResponseSchema(BaseModel):
     summary: str
     facts: list[dict[str, Any]]
     is_summarizing: bool
+    last_summarized_message: UUID | None
 
     created_at: datetime
     updated_at: datetime
-
-
-class ChatMemoryUpdateSchema(BaseModel):
-    """Schema for updating chat memory.
-
-    Attributes:
-        summary (str | None): Optional chat memory summary.
-        facts (list[dict[str, Any]] | None): Optional structured facts
-            extracted from the chat memory.
-        is_summarizing (bool | None): Optional flag indicating whether chat
-            memory summarization is currently in progress.
-    """
-
-    summary: str | None = Field(
-        default=None,
-    )
-
-    facts: list[dict[str, Any]] | None = Field(
-        default=None,
-    )
-
-    is_summarizing: bool | None = Field(
-        default=None,
-    )

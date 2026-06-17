@@ -3,7 +3,7 @@
 This package re-exports schema classes used by the API.
 """
 
-from .chat_memory import ChatMemoryResponseSchema, ChatMemoryUpdateSchema
+from .chat_memory import ChatMemoryResponseSchema
 from .chat_session import (
     ChatSessionCreateSchema,
     ChatSessionListQuerySchema,
@@ -68,5 +68,4 @@ __all__ = [
     "GenerationJobResponseSchema",
     "GenerationJobUpdateSchema",
     "ChatMemoryResponseSchema",
-    "ChatMemoryUpdateSchema",
 ]
