@@ -9,7 +9,7 @@ from uuid import UUID
 
 from loguru import logger
 
-from ai_notes_api.db.session import async_session_factory
+from ai_notes_api.db.session import worker_session
 from ai_notes_api.integrations import openai_client
 from ai_notes_api.memory import MemoryExtractor, MemorySummarizer
 from ai_notes_api.repositories import ChatMemoryRepository, MessageRepository
@@ -43,7 +43,7 @@ async def _update_chat_memory_summary(user_id: UUID, session_id: UUID) -> None:
     extractor = MemoryExtractor(openai_client)
     summarizer = MemorySummarizer(openai_client)
 
-    async with async_session_factory() as session:
+    async with worker_session() as session:
         messages_repository = MessageRepository(session)
         memories_repository = ChatMemoryRepository(session)
 

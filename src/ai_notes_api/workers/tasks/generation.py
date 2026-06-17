@@ -11,7 +11,7 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_notes_api.db.models import GenerationJobStatus
-from ai_notes_api.db.session import async_session_factory
+from ai_notes_api.db.session import worker_session
 from ai_notes_api.exceptions.generation_job import GenerationNotFoundError
 from ai_notes_api.integrations import openai_client
 from ai_notes_api.llm import LLMClient
@@ -55,7 +55,7 @@ async def _run_generation_job(job_id: UUID) -> None:
     """
     llm_client = LLMClient(openai_client)
 
-    async with async_session_factory() as session:
+    async with worker_session() as session:
         notes_repository = NoteRepository(session)
         messages_repository = MessageRepository(session)
         sessions_repository = ChatSessionRepository(session)
