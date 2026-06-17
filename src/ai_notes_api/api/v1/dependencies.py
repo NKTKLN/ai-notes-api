@@ -27,6 +27,7 @@ from ai_notes_api.repositories import (
 )
 from ai_notes_api.services import (
     AuthService,
+    ChatMemoryService,
     ChatSessionService,
     JobService,
     LLMService,
@@ -220,3 +221,20 @@ def get_job_service(
         job_repository=jobs,
         session_service=sessions_service,
     )
+
+
+def get_memory_service(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> ChatMemoryService:
+    """Provide a chat memory service instance.
+
+    Args:
+        session (AsyncSession): Asynchronous database session provided by FastAPI
+            dependency injection.
+
+    Returns:
+        ChatMemoryService: Configured chat memory service instance.
+    """
+    repository = ChatMemoryRepository(session)
+
+    return ChatMemoryService(repository=repository)

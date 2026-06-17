@@ -16,21 +16,18 @@ class ChatMemoryService:
     """Service for chat-memory-related business operations.
 
     Args:
-        memory_repository (ChatMemoryRepository): Repository used to perform
-            chat memory database operations.
+        repository (ChatMemoryRepository): Repository used to perform chat memory
+            database operations.
     """
 
-    def __init__(
-        self,
-        memory_repository: ChatMemoryRepository,
-    ) -> None:
+    def __init__(self, repository: ChatMemoryRepository) -> None:
         """Initialize the chat memory service.
 
         Args:
-            memory_repository (ChatMemoryRepository): Chat memory repository
-                used by the service.
+            repository (ChatMemoryRepository): Chat memory repository used by
+                the service.
         """
-        self.memories = memory_repository
+        self.memories = repository
 
     async def get_by_session_id(
         self,

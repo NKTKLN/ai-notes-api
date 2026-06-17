@@ -4,6 +4,7 @@ This package re-exports application service classes.
 """
 
 from .auth import AuthService
+from .chat_memory import ChatMemoryService
 from .chat_session import ChatSessionService
 from .generation_job import JobService
 from .llm_service import LLMService
@@ -17,4 +18,5 @@ __all__ = [
     "MessageService",
     "NoteService",
     "LLMService",
+    "ChatMemoryService",
 ]
