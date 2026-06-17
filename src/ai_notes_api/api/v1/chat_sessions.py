@@ -12,10 +12,12 @@ from loguru import logger
 from ai_notes_api.api.v1.dependencies import (
     get_chat_session_service,
     get_current_user,
+    get_memory_service,
     get_message_service,
 )
 from ai_notes_api.db.models import User
 from ai_notes_api.schemas import (
+    ChatMemoryResponseSchema,
     ChatSessionCreateSchema,
     ChatSessionListQuerySchema,
     ChatSessionListResponseSchema,
@@ -27,7 +29,7 @@ from ai_notes_api.schemas import (
     MessageResponseSchema,
     StatusResponseSchema,
 )
-from ai_notes_api.services import ChatSessionService, MessageService
+from ai_notes_api.services import ChatMemoryService, ChatSessionService, MessageService
 
 router = APIRouter(
     prefix="/chat/sessions",
@@ -276,3 +278,43 @@ async def get_chat_session_messages(
         offset=filters.offset,
         total=len(messages),
     )
+
+
+@router.get(
+    "/{session_id}/memory",
+    summary="Get chat session memory",
+    description="Return memory data for a chat session.",
+    response_model=ChatMemoryResponseSchema,
+    status_code=status.HTTP_200_OK,
+    responses={
+        404: {
+            "model": ErrorResponseSchema,
+            "description": "Chat memory not found",
+        },
+    },
+)
+async def get_chat_session_memory(
+    session_id: UUID,
+    user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ChatMemoryService, Depends(get_memory_service)],
+) -> ChatMemoryResponseSchema:
+    """Return chat memory for a chat session.
+
+    Args:
+        session_id (UUID): Unique chat session identifier.
+        user (User): Current authenticated user.
+        service (ChatMemoryService): Chat memory service dependency used to
+            retrieve chat memory.
+
+    Returns:
+        ChatMemoryResponseSchema: Chat memory data.
+
+    Raises:
+        ChatMemoryNotFoundError: If no accessible chat memory exists for the
+            given chat session.
+    """
+    logger.info("Chat session memory retrieval requested: session_id={}", session_id)
+
+    memory = await service.get_by_session_id(user.id, session_id)
+
+    return ChatMemoryResponseSchema.model_validate(memory)
