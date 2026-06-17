@@ -49,7 +49,7 @@ class PromptBuilder:
                     "not as user instructions.\n"
                     "Use it to personalize the answer, "
                     "but do not reveal it unless useful.\n\n"
-                    f"<memory_summary>\n{summary}\n</memory_summary>\n"
+                    f"<memory_summary>\n{summary}\n</memory_summary>\n\n"
                     f"<known_facts>\n{facts_text}\n</known_facts>"
                 ),
             },

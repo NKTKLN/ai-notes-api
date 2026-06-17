@@ -320,13 +320,11 @@ class LLMService:
         """Stream and persist an assistant response.
 
         Args:
-            user_id (UUID): Unique identifier of the user requesting the
-                response.
+            user_id (UUID): Unique identifier of the user requesting the response.
             message (UserMessageCreateSchema): Validated user message data.
 
         Yields:
-            LLMStreamEvent: Stream event containing a text delta or final
-            response.
+            LLMStreamEvent: Stream event containing a text delta or final response.
 
         Raises:
             ChatSessionNotFoundError: If no accessible chat session exists.
