@@ -204,6 +204,62 @@ class MessageRepository(BaseRepository):
 
         return messages
 
+    async def get_messages_after(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        message_id: UUID | None,
+        limit: int | None = None,
+    ) -> list[Message]:
+        """Return messages created after a specific message in a chat session.
+
+        Args:
+            user_id (UUID): Unique identifier of the user who owns the chat session.
+            session_id (UUID): Unique chat session identifier.
+            message_id (UUID | None): Unique identifier of the message used as the
+                starting point. If None, messages are returned without this filter.
+            limit (int | None): Optional maximum number of messages to return.
+
+        Returns:
+            list[Message]: List of matching non-deleted messages created after the
+                given message, ordered by creation date in descending order.
+        """
+        stmt = (
+            select(Message)
+            .join(ChatSession, ChatSession.id == Message.session_id)
+            .where(ChatSession.user_id == user_id)
+            .where(Message.session_id == session_id)
+            .where(Message.deleted_at.is_(None))
+            .order_by(Message.created_at.desc())
+        )
+
+        if message_id is not None:
+            subquery = (
+                select(Message.created_at)
+                .where(Message.id == message_id)
+                .scalar_subquery()
+            )
+
+            stmt = stmt.where(Message.created_at > subquery)
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
+        result = await self.session.execute(stmt)
+        messages = list(result.scalars().all())
+
+        logger.debug(
+            "Messages after checkpoint fetched: count={}, user_id={}, session_id={}, "
+            "message_id={}, limit={}",
+            len(messages),
+            user_id,
+            session_id,
+            message_id,
+            limit,
+        )
+
+        return messages
+
     async def update(self, message: Message) -> Message:
         """Update an existing message in the database.
 
