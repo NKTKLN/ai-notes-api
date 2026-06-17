@@ -5,7 +5,7 @@ chat messages using an LLM.
 """
 
 import json
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from openai import AsyncOpenAI
 
@@ -82,7 +82,7 @@ class MemoryExtractor:
         self,
         facts: list[dict[str, Any]],
         context_messages: list[LLMMessage],
-    ) -> dict[str, list[dict[str, Any]]]:
+    ) -> list[dict[str, Any]]:
         """Extract structured user facts from recent chat context.
 
         Args:
@@ -92,8 +92,8 @@ class MemoryExtractor:
                 the source transcript for fact extraction.
 
         Returns:
-            dict[str, list[dict[str, Any]]]: Extracted facts in the structured
-            response format defined by FACTS_SCHEMA.
+            list[dict[str, Any]]: Extracted facts in the structured response format
+                defined by FACTS_SCHEMA.
         """
         facts_text = json.dumps(facts, ensure_ascii=False, indent=2) if facts else "[]"
 
@@ -131,4 +131,4 @@ class MemoryExtractor:
             temperature=0,
         )
 
-        return json.loads(response.output_text)
+        return cast(dict, json.loads(response.output_text)).get("facts", [])
