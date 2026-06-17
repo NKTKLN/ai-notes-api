@@ -51,8 +51,7 @@ async def _run_generation_job(job_id: UUID) -> None:
         job_id (UUID): Unique generation job identifier.
 
     Raises:
-        GenerationNotFoundError: If no generation job with the given identifier
-            exists.
+        GenerationNotFoundError: If no generation job with the given identifier exists.
     """
     llm_client = LLMClient(openai_client)
 
