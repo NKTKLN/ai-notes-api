@@ -4,13 +4,14 @@ This module provides business logic for generating and streaming LLM responses.
 """
 
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
 from ai_notes_api.core import settings
 from ai_notes_api.db.models import Message
-from ai_notes_api.llm import LLMClient, PromptBuilder
+from ai_notes_api.llm import LLMClient
 from ai_notes_api.llm.models import LLMMessage, LLMResponse, LLMStreamEvent
+from ai_notes_api.memory import PromptBuilder
 from ai_notes_api.schemas import (
     AssistantMessageCreateSchema,
     ChatCompletionResponseSchema,
@@ -32,7 +33,16 @@ class LLMService:
             validate access and manage generation locks.
         message_service (MessageService): Message service used to persist chat
             messages.
+
+    Attributes:
+        SYSTEM_PROMPT (ClassVar[str]): System prompt prepended to the chat context.
     """
+
+    SYSTEM_PROMPT: ClassVar[str] = (
+        "Respond in the user's language. Do not invent facts about the user. "
+        "Use note-management tools only when the user clearly asks for it."
+        # "Do not invent facts from documents: if data is missing, say so.\n"
+    )
 
     def __init__(
         self,
@@ -176,10 +186,11 @@ class LLMService:
             session_id=message.session_id,
         )
 
-        input_data = PromptBuilder.build(context_messages)
+        input_data = PromptBuilder.build(context_messages=context_messages)
 
         while True:
             llm_response = await self.client.create_response(
+                instructions=self.SYSTEM_PROMPT,
                 input_data=input_data,
                 tools=tools,
             )
@@ -344,7 +355,7 @@ class LLMService:
                 session_id=message.session_id,
             )
 
-            input_data = PromptBuilder.build(context_messages)
+            input_data = PromptBuilder.build(context_messages=context_messages)
 
             llm_response: LLMResponse | None = None
 
@@ -352,6 +363,7 @@ class LLMService:
                 llm_response = None
 
                 async for event in self.client.stream_response_events(
+                    instructions=self.SYSTEM_PROMPT,
                     input_data=input_data,
                     tools=tools,
                 ):
