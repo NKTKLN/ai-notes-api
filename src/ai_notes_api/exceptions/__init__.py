@@ -5,7 +5,7 @@ registration utilities.
 """
 
 from .base import AppException, register_exception_handlers
-from .chat_memory import ChatMemoryNotFoundError
+from .chat_memory import ChatMemoryNotFoundError, MemoryInProgressError
 from .chat_session import ChatSessionNotFoundError
 from .generation_job import GenerationInProgressError, GenerationNotFoundError
 from .message import MessageNotFoundError
@@ -32,4 +32,5 @@ __all__ = [
     "GenerationInProgressError",
     "GenerationNotFoundError",
     "ChatMemoryNotFoundError",
+    "MemoryInProgressError",
 ]
