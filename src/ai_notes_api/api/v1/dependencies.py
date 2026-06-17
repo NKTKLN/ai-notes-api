@@ -82,7 +82,7 @@ def get_note_service(
     """
     repository = NoteRepository(session)
 
-    return NoteService(repository=repository)
+    return NoteService(repository)
 
 
 def get_auth_service(
@@ -99,7 +99,7 @@ def get_auth_service(
     """
     repository = UserRepository(session)
 
-    return AuthService(repository=repository)
+    return AuthService(repository)
 
 
 async def get_current_user(
@@ -187,7 +187,10 @@ def get_llm_service(
         session_repository=sessions,
         memory_repository=memories,
     )
-    messages_service = MessageService(messages, sessions)
+    messages_service = MessageService(
+        message_repository=messages,
+        session_repository=sessions,
+    )
 
     return LLMService(
         client=client,
@@ -237,4 +240,4 @@ def get_memory_service(
     """
     repository = ChatMemoryRepository(session)
 
-    return ChatMemoryService(repository=repository)
+    return ChatMemoryService(repository)

@@ -56,13 +56,13 @@ async def _run_generation_job(job_id: UUID) -> None:
     llm_client = LLMClient(openai_client)
 
     async with async_session_factory() as session:
-        notes_repository = NoteRepository(session=session)
-        messages_repository = MessageRepository(session=session)
-        sessions_repository = ChatSessionRepository(session=session)
-        memories_repository = ChatMemoryRepository(session=session)
-        generation_job_repository = GenerationJobRepository(session=session)
+        notes_repository = NoteRepository(session)
+        messages_repository = MessageRepository(session)
+        sessions_repository = ChatSessionRepository(session)
+        memories_repository = ChatMemoryRepository(session)
+        generation_job_repository = GenerationJobRepository(session)
 
-        notes_service = NoteService(repository=notes_repository)
+        notes_service = NoteService(notes_repository)
         messages_service = MessageService(
             message_repository=messages_repository,
             session_repository=sessions_repository,
