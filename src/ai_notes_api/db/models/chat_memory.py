@@ -6,7 +6,7 @@ This module defines the SQLAlchemy ORM model for chat memory records.
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import ForeignKey, Text, Uuid
+from sqlalchemy import Boolean, ForeignKey, Text, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,6 +28,8 @@ class ChatMemory(Base, TimestampMixin):
             chat memory.
         summary (Mapped[str]): Summary of the chat session memory.
         facts (Mapped[list[dict[str, Any]]]): Facts extracted from the chat session.
+        is_summarizing (Mapped[bool]): Whether chat memory summarization is
+            currently in progress.
     """
 
     __tablename__ = "chat_memories"
@@ -61,5 +63,11 @@ class ChatMemory(Base, TimestampMixin):
     facts: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB,
         default=list,
+        nullable=False,
+    )
+
+    is_summarizing: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
         nullable=False,
     )
