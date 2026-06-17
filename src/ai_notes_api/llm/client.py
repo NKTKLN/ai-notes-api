@@ -204,6 +204,7 @@ class LLMClient:
         self,
         input_data: str | list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
+        instructions: str | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
     ) -> AsyncGenerator[LLMStreamEvent]:
@@ -214,6 +215,7 @@ class LLMClient:
                 structured input messages.
             tools (list[dict[str, Any]] | None): Optional tool definitions the
                 model may call.
+            instructions (str | None): Optional system-level instructions.
             max_output_tokens (int | None): Optional maximum number of tokens
                 to generate.
             temperature (float | None): Optional sampling temperature.
@@ -225,7 +227,7 @@ class LLMClient:
         kwargs = self._build_response_kwargs(
             input_data=input_data,
             tools=tools,
-            instructions=None,
+            instructions=instructions,
             text_format=None,
             max_output_tokens=max_output_tokens,
             temperature=temperature,
