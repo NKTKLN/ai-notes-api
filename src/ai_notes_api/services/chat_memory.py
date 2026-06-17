@@ -8,7 +8,10 @@ from uuid import UUID
 
 from ai_notes_api.core import settings
 from ai_notes_api.db.models import ChatMemory
-from ai_notes_api.exceptions import ChatMemoryNotFoundError
+from ai_notes_api.exceptions import (
+    ChatMemoryDependenciesNotConfiguredError,
+    ChatMemoryNotFoundError,
+)
 from ai_notes_api.llm.models import LLMMessage
 from ai_notes_api.memory import MemoryExtractor, MemorySummarizer
 from ai_notes_api.repositories import ChatMemoryRepository, MessageRepository
@@ -18,39 +21,49 @@ class ChatMemoryService:
     """Service for chat-memory-related business operations.
 
     Args:
-        messages_repository (MessageRepository): Repository used to retrieve
-            chat messages.
         memories_repository (ChatMemoryRepository): Repository used to perform
             chat memory database operations.
-        extractor (MemoryExtractor): Service used to extract structured facts
-            from chat context messages.
-        summarizer (MemorySummarizer): Service used to update chat memory
-            summaries from chat context messages.
+        messages_repository (MessageRepository | None): Optional repository used
+            to retrieve chat messages.
+        extractor (MemoryExtractor | None): Optional service used to extract
+            structured facts from chat context messages.
+        summarizer (MemorySummarizer | None): Optional service used to update
+            chat memory summaries from chat context messages.
     """
 
     def __init__(
         self,
-        messages_repository: MessageRepository,
         memories_repository: ChatMemoryRepository,
-        extractor: MemoryExtractor,
-        summarizer: MemorySummarizer,
+        messages_repository: MessageRepository | None = None,
+        extractor: MemoryExtractor | None = None,
+        summarizer: MemorySummarizer | None = None,
     ) -> None:
         """Initialize the chat memory service.
 
         Args:
-            messages_repository (MessageRepository): Repository used to retrieve
-                chat messages.
             memories_repository (ChatMemoryRepository): Repository used to
                 retrieve and update chat memory records.
-            extractor (MemoryExtractor): Service used to extract structured facts
-                from chat context messages.
-            summarizer (MemorySummarizer): Service used to update chat memory
-                summaries from chat context messages.
+            messages_repository (MessageRepository | None): Optional repository
+                used to retrieve chat messages.
+            extractor (MemoryExtractor | None): Optional service used to extract
+                structured facts from chat context messages.
+            summarizer (MemorySummarizer | None): Optional service used to update
+                chat memory summaries from chat context messages.
         """
         self.messages = messages_repository
         self.memories = memories_repository
         self.extractor = extractor
         self.summarizer = summarizer
+
+    def _ensure_update_dependencies(self) -> None:
+        """Ensure dependencies required for chat memory updates are configured.
+
+        Raises:
+            ChatMemoryDependenciesNotConfiguredError: If any dependency required for
+                updating chat memory is missing.
+        """
+        if self.messages is None or self.extractor is None or self.summarizer is None:
+            raise ChatMemoryDependenciesNotConfiguredError()
 
     async def _get_context_messages(
         self,
@@ -69,6 +82,8 @@ class ChatMemoryService:
         Returns:
             list[LLMMessage]: Context messages converted to the LLM message format.
         """
+        self._ensure_update_dependencies()
+
         raw_messages = await self.messages.get_messages_after(
             user_id=user_id,
             session_id=session_id,
@@ -125,7 +140,11 @@ class ChatMemoryService:
         Raises:
             ChatMemoryNotFoundError: If no accessible chat memory exists for the
                 given chat session.
+            RuntimeError: If dependencies required for updating chat memory are
+                not configured.
         """
+        self._ensure_update_dependencies()
+
         memory = await self.get_by_session_id(user_id, session_id)
 
         context_messages = await self._get_context_messages(

@@ -36,3 +36,19 @@ class MemoryInProgressError(AppException):
     def __init__(self) -> None:
         """Initialize the memory in progress exception."""
         super().__init__("Chat memory summarization is already in progress")
+
+
+class ChatMemoryDependenciesNotConfiguredError(AppException):
+    """Exception raised when chat memory update dependencies are not configured.
+
+    Attributes:
+        status_code (int): HTTP status code returned for this exception.
+        code (str): Application-specific error code.
+    """
+
+    status_code: int = 500
+    code: str = "CHAT_MEMORY_DEPENDENCIES_NOT_CONFIGURED"
+
+    def __init__(self) -> None:
+        """Initialize the chat memory dependencies not configured exception."""
+        super().__init__("Chat memory update dependencies are not configured")
