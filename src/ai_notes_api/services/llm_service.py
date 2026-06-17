@@ -21,6 +21,7 @@ from ai_notes_api.services.chat_session import ChatSessionService
 from ai_notes_api.services.message import MessageService
 from ai_notes_api.services.note import NoteService
 from ai_notes_api.tools import build_registry
+from ai_notes_api.workers.tasks.memory import update_chat_memory_summary
 
 
 class LLMService:
@@ -108,7 +109,7 @@ class LLMService:
         model_name = self._get_value(raw_response, "model")
         provider = self._get_value(raw_response, "provider")
 
-        return await self.messages.create_assistant_message(
+        assistant_message = await self.messages.create_assistant_message(
             user_id=user_id,
             data=AssistantMessageCreateSchema(
                 session_id=session_id,
@@ -120,6 +121,10 @@ class LLMService:
                 total_tokens=self._get_value(usage, "total_tokens"),
             ),
         )
+
+        update_chat_memory_summary.delay(str(user_id), str(session_id))
+
+        return assistant_message
 
     async def _get_context_messages(
         self,
