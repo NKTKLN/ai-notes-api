@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 from ai_notes_api.core import settings
 from ai_notes_api.db.models import Message
 from ai_notes_api.llm import LLMClient, PromptBuilder
-from ai_notes_api.llm.models import LLMResponse, LLMStreamEvent
+from ai_notes_api.llm.models import LLMMessage, LLMResponse, LLMStreamEvent
 from ai_notes_api.schemas import (
     AssistantMessageCreateSchema,
     ChatCompletionResponseSchema,
@@ -111,6 +111,38 @@ class LLMService:
             ),
         )
 
+    async def _get_context_messages(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+    ) -> list[LLMMessage]:
+        """Get LLM context messages for a chat session.
+
+        Args:
+            user_id (UUID): Unique identifier of the user.
+            session_id (UUID): Unique identifier of the chat session.
+
+        Returns:
+            list[LLMMessage]: Context messages converted to the LLM message format.
+        """
+        raw_messages = await self.messages.get_context_messages(
+            user_id=user_id,
+            session_id=session_id,
+            limit=settings.llm_context_messages_limit,
+        )
+
+        context_messages: list[LLMMessage] = []
+
+        for message in raw_messages:
+            context_messages.append(
+                LLMMessage(
+                    role=message.role,
+                    content=message.content,
+                )
+            )
+
+        return context_messages
+
     async def _generate_response_locked(
         self,
         user_id: UUID,
@@ -139,10 +171,9 @@ class LLMService:
             data=message,
         )
 
-        context_messages = await self.messages.get_context_messages(
+        context_messages = await self._get_context_messages(
             user_id=user_id,
             session_id=message.session_id,
-            limit=settings.llm_context_messages_limit,
         )
 
         input_data = PromptBuilder.build(context_messages)
@@ -308,10 +339,9 @@ class LLMService:
                 data=message,
             )
 
-            context_messages = await self.messages.get_context_messages(
+            context_messages = await self._get_context_messages(
                 user_id=user_id,
                 session_id=message.session_id,
-                limit=settings.llm_context_messages_limit,
             )
 
             input_data = PromptBuilder.build(context_messages)

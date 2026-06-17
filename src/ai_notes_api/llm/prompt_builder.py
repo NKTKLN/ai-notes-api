@@ -7,7 +7,7 @@ messages.
 from dataclasses import asdict
 from typing import Any, ClassVar
 
-from ai_notes_api.db.models import Message, MessageRole
+from ai_notes_api.db.models import MessageRole
 from ai_notes_api.llm.models import LLMMessage
 
 
@@ -15,23 +15,22 @@ class PromptBuilder:
     """Builder for LLM prompt messages.
 
     Attributes:
-        SYSTEM_PROMPT (ClassVar[str]): System prompt prepended to chat context.
+        SYSTEM_PROMPT (ClassVar[str]): System prompt prepended to the chat context.
     """
 
     SYSTEM_PROMPT: ClassVar[str] = (
-        "Отвечай на языке пользователя. Не выдумывай факты о пользователе. "
-        "Использование инструментов работы с заметками строго по чёткому "
-        "запросу пользователя.\n"
-        # "Используй долгосрочную память только если она релевантна вопросу.\n"
-        # "Не выдумывай факты из документов: если данных нет, так и скажи.\n"
+        "Respond in the user's language. Do not invent facts about the user. "
+        "Use note-management tools only when the user clearly asks for it."
+        # "Use long-term memory only when it is relevant to the question.\n"
+        # "Do not invent facts from documents: if data is missing, say so.\n"
     )
 
     @classmethod
-    def build(cls, context_messages: list[Message]) -> list[dict[str, Any]]:
+    def build(cls, context_messages: list[LLMMessage]) -> list[dict[str, Any]]:
         """Build LLM input messages from chat context messages.
 
         Args:
-            context_messages (list[Message]): Chat messages used as context.
+            context_messages (list[LLMMessage]): Chat messages used as context.
 
         Returns:
             list[dict[str, Any]]: Serialized LLM input messages.
@@ -40,15 +39,12 @@ class PromptBuilder:
             LLMMessage(
                 role=MessageRole.SYSTEM,
                 content=cls.SYSTEM_PROMPT,
-            )
+            ),
+            LLMMessage(
+                role=MessageRole.USER,
+                content="Recent conversation messages follow.",
+            ),
+            *context_messages,
         ]
-
-        for message in context_messages:
-            llm_messages.append(
-                LLMMessage(
-                    role=message.role,
-                    content=message.content,
-                )
-            )
 
         return [asdict(message) for message in llm_messages]
