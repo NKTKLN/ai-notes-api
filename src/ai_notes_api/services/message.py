@@ -198,7 +198,11 @@ class MessageService:
         """
         await self._ensure_session_owner(user_id, session_id)
 
-        messages = await self.messages.get_last_messages(user_id, session_id, limit)
+        messages = await self.messages.get_last_messages(
+            user_id=user_id,
+            session_id=session_id,
+            limit=limit,
+        )
 
         return list(reversed(messages))
 
