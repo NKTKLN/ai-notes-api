@@ -6,28 +6,83 @@ records owned by users.
 
 from uuid import UUID
 
+from ai_notes_api.core import settings
 from ai_notes_api.db.models import ChatMemory
 from ai_notes_api.exceptions import ChatMemoryNotFoundError
-from ai_notes_api.repositories import ChatMemoryRepository
-from ai_notes_api.schemas import ChatMemoryUpdateSchema
+from ai_notes_api.llm.models import LLMMessage
+from ai_notes_api.memory import MemoryExtractor, MemorySummarizer
+from ai_notes_api.repositories import ChatMemoryRepository, MessageRepository
 
 
 class ChatMemoryService:
     """Service for chat-memory-related business operations.
 
     Args:
-        repository (ChatMemoryRepository): Repository used to perform chat memory
-            database operations.
+        messages_repository (MessageRepository): Repository used to retrieve
+            chat messages.
+        memories_repository (ChatMemoryRepository): Repository used to perform
+            chat memory database operations.
+        extractor (MemoryExtractor): Service used to extract structured facts
+            from chat context messages.
+        summarizer (MemorySummarizer): Service used to update chat memory
+            summaries from chat context messages.
     """
 
-    def __init__(self, repository: ChatMemoryRepository) -> None:
+    def __init__(
+        self,
+        messages_repository: MessageRepository,
+        memories_repository: ChatMemoryRepository,
+        extractor: MemoryExtractor,
+        summarizer: MemorySummarizer,
+    ) -> None:
         """Initialize the chat memory service.
 
         Args:
-            repository (ChatMemoryRepository): Chat memory repository used by
-                the service.
+            messages_repository (MessageRepository): Repository used to retrieve
+                chat messages.
+            memories_repository (ChatMemoryRepository): Repository used to
+                retrieve and update chat memory records.
+            extractor (MemoryExtractor): Service used to extract structured facts
+                from chat context messages.
+            summarizer (MemorySummarizer): Service used to update chat memory
+                summaries from chat context messages.
         """
-        self.memories = repository
+        self.messages = messages_repository
+        self.memories = memories_repository
+        self.extractor = extractor
+        self.summarizer = summarizer
+
+    async def _get_context_messages(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        message_id: UUID | None,
+    ) -> list[LLMMessage]:
+        """Get LLM context messages for a chat session.
+
+        Args:
+            user_id (UUID): Unique identifier of the user.
+            session_id (UUID): Unique identifier of the chat session.
+            message_id (UUID | None): Identifier of the last summarized message.
+                If None, context messages are loaded without a checkpoint.
+
+        Returns:
+            list[LLMMessage]: Context messages converted to the LLM message format.
+        """
+        raw_messages = await self.messages.get_messages_after(
+            user_id=user_id,
+            session_id=session_id,
+            message_id=message_id,
+            limit=settings.llm_context_messages_limit,
+        )
+
+        return [
+            LLMMessage(
+                role=message.role,
+                content=message.content,
+            )
+            for message in raw_messages
+        ]
 
     async def get_by_session_id(
         self,
@@ -57,19 +112,12 @@ class ChatMemoryService:
 
         return chat_memory
 
-    async def update_memory(
-        self,
-        user_id: UUID,
-        session_id: UUID,
-        data: ChatMemoryUpdateSchema,
-    ) -> ChatMemory:
-        """Update a user's chat memory.
+    async def update_memory(self, user_id: UUID, session_id: UUID) -> ChatMemory:
+        """Update a user's chat memory from new chat messages.
 
         Args:
             user_id (UUID): Unique identifier of the user who owns the chat memory.
             session_id (UUID): Unique identifier of the chat session.
-            data (ChatMemoryUpdateSchema): Validated data used to update the
-                chat memory.
 
         Returns:
             ChatMemory: Updated chat memory.
@@ -80,10 +128,24 @@ class ChatMemoryService:
         """
         memory = await self.get_by_session_id(user_id, session_id)
 
-        update_data = data.model_dump(exclude_unset=True)
+        context_messages = await self._get_context_messages(
+            user_id=user_id,
+            session_id=session_id,
+            message_id=memory.last_summarized_message_id,
+        )
 
-        for field, value in update_data.items():
-            if value is not None:
-                setattr(memory, field, value)
+        if not context_messages:
+            return memory
+
+        if len(context_messages) >= settings.llm_context_messages_limit:
+            memory.summary = await self.summarizer.summarize(
+                summary=memory.summary,
+                context_messages=context_messages,
+            )
+
+        memory.facts = await self.extractor.extract(
+            facts=memory.facts,
+            context_messages=context_messages,
+        )
 
         return await self.memories.update(memory)
