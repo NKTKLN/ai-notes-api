@@ -55,16 +55,6 @@ class ChatMemoryService:
         self.extractor = extractor
         self.summarizer = summarizer
 
-    def _ensure_update_dependencies(self) -> None:
-        """Ensure dependencies required for chat memory updates are configured.
-
-        Raises:
-            ChatMemoryDependenciesNotConfiguredError: If any dependency required for
-                updating chat memory is missing.
-        """
-        if self.messages is None or self.extractor is None or self.summarizer is None:
-            raise ChatMemoryDependenciesNotConfiguredError()
-
     async def _get_context_messages(
         self,
         user_id: UUID,
@@ -81,8 +71,13 @@ class ChatMemoryService:
 
         Returns:
             list[LLMMessage]: Context messages converted to the LLM message format.
+
+        Raises:
+            ChatMemoryDependenciesNotConfiguredError: If any dependency required for
+                updating chat memory is missing.
         """
-        self._ensure_update_dependencies()
+        if self.messages is None:
+            raise ChatMemoryDependenciesNotConfiguredError()
 
         raw_messages = await self.messages.get_messages_after(
             user_id=user_id,
@@ -140,10 +135,11 @@ class ChatMemoryService:
         Raises:
             ChatMemoryNotFoundError: If no accessible chat memory exists for the
                 given chat session.
-            RuntimeError: If dependencies required for updating chat memory are
-                not configured.
+            ChatMemoryDependenciesNotConfiguredError: If any dependency required for
+                updating chat memory is missing.
         """
-        self._ensure_update_dependencies()
+        if self.extractor is None or self.summarizer is None:
+            raise ChatMemoryDependenciesNotConfiguredError()
 
         memory = await self.get_by_session_id(user_id, session_id)
 
@@ -157,14 +153,20 @@ class ChatMemoryService:
             return memory
 
         if len(context_messages) >= settings.llm_context_messages_limit:
-            memory.summary = await self.summarizer.summarize(
-                summary=memory.summary,
-                context_messages=context_messages,
+            memory.summary = (
+                await self.summarizer.summarize(
+                    summary=memory.summary,
+                    context_messages=context_messages,
+                )
+                or memory.summary
             )
 
-        memory.facts = await self.extractor.extract(
-            facts=memory.facts,
-            context_messages=context_messages,
+        memory.facts = (
+            await self.extractor.extract(
+                facts=memory.facts,
+                context_messages=context_messages,
+            )
+            or memory.facts
         )
 
         return await self.memories.update(memory)

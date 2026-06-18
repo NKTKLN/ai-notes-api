@@ -8,6 +8,11 @@ import json
 from typing import Any, ClassVar, cast
 
 from openai import AsyncOpenAI
+from openai.types.responses import (
+    ResponseFormatTextJSONSchemaConfigParam,
+    ResponseInputParam,
+    ResponseTextConfigParam,
+)
 
 from ai_notes_api.core import settings
 from ai_notes_api.llm.models import LLMMessage
@@ -25,7 +30,7 @@ class MemoryExtractor:
             structured fact extraction output from the LLM.
     """
 
-    FACTS_SCHEMA: ClassVar[dict[str, Any]] = {
+    FACTS_SCHEMA: ClassVar[ResponseFormatTextJSONSchemaConfigParam] = {
         "type": "json_schema",
         "name": "user_facts_extraction",
         "schema": {
@@ -102,7 +107,7 @@ class MemoryExtractor:
             for message in context_messages
         )
 
-        llm_messages: list[dict[str, str]] = [
+        llm_messages: ResponseInputParam = [
             {
                 "role": "user",
                 "content": (
@@ -123,12 +128,16 @@ class MemoryExtractor:
             },
         ]
 
+        text_config: ResponseTextConfigParam = {"format": self.FACTS_SCHEMA}
+
         response = await self.client.responses.create(
             instructions=FACT_EXTRACTION_PROMPT,
             model=settings.open_ai_model,
             input=llm_messages,
-            text={"format": self.FACTS_SCHEMA},
+            text=text_config,
             temperature=0,
         )
 
-        return cast(dict, json.loads(response.output_text)).get("facts", [])
+        data = cast(dict[str, Any], json.loads(response.output_text))
+        facts_result: list[dict[str, Any]] = data.get("facts", [])
+        return facts_result

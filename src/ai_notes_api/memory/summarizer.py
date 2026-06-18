@@ -5,6 +5,7 @@ chat messages.
 """
 
 from openai import AsyncOpenAI
+from openai.types.responses import ResponseInputParam
 
 from ai_notes_api.core import settings
 from ai_notes_api.llm.models import LLMMessage
@@ -47,7 +48,7 @@ class MemorySummarizer:
             for message in context_messages
         )
 
-        llm_messages: list[dict[str, str]] = [
+        llm_messages: ResponseInputParam = [
             {
                 "role": "user",
                 "content": (
