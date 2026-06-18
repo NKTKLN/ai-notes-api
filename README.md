@@ -2,6 +2,8 @@
 
 **AI Notes API** is a production-oriented FastAPI backend for managing AI-related notes, prompts, conversations, and LLM workflows. The project demonstrates clean architecture, async development, PostgreSQL integration, and practical backend patterns for AI engineering.
 
+The assistant is agentic: during chat completions it can call a built-in note toolkit (search, create, read, update, delete notes), and every chat session keeps a long-term memory built from extracted facts and rolling conversation summaries.
+
 ## 📦 Dependencies
 
 * [Python 3.13+](https://www.python.org/downloads/)
@@ -13,7 +15,7 @@ Runtime services:
 
 * [PostgreSQL](https://www.postgresql.org/) - primary data store
 * [Redis](https://redis.io/) - Celery broker and result backend
-* [Celery](https://docs.celeryq.dev/) - background worker for async LLM generation jobs
+* [Celery](https://docs.celeryq.dev/) - background worker for async LLM generation jobs and chat memory updates
 
 ## 📌 API endpoints
 
@@ -41,6 +43,7 @@ Chat session endpoints (authenticated):
 * `PATCH /api/v1/chat/sessions/{session_id}` - update a chat session by ID
 * `DELETE /api/v1/chat/sessions/{session_id}` - delete a chat session by ID
 * `GET /api/v1/chat/sessions/{session_id}/messages` - list messages in a session
+* `GET /api/v1/chat/sessions/{session_id}/memory` - get the long-term memory for a chat session
 
 Chat message endpoints (authenticated):
 
