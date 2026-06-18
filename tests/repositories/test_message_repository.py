@@ -807,6 +807,210 @@ async def test_get_last_messages_returns_only_requested_session(
 
 
 @pytest.mark.asyncio
+async def test_get_messages_after_without_checkpoint_returns_all(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that messages after a None checkpoint returns all session messages."""
+    repository = MessageRepository(session=async_session)
+    chat_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    base = datetime.now(UTC)
+
+    await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="First",
+            created_at=base,
+        )
+    )
+    await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Second",
+            created_at=base + timedelta(seconds=1),
+        )
+    )
+
+    messages = await repository.get_messages_after(
+        test_user.id, chat_session.id, message_id=None
+    )
+
+    assert len(messages) == 2
+    assert messages[0].content == "Second"
+    assert messages[1].content == "First"
+
+
+@pytest.mark.asyncio
+async def test_get_messages_after_checkpoint_excludes_earlier(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that only messages created after the checkpoint are returned."""
+    repository = MessageRepository(session=async_session)
+    chat_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    base = datetime.now(UTC)
+
+    await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Before",
+            created_at=base,
+        )
+    )
+    checkpoint_message = await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Checkpoint",
+            created_at=base + timedelta(seconds=1),
+        )
+    )
+    after_message = await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="After",
+            created_at=base + timedelta(seconds=2),
+        )
+    )
+
+    messages = await repository.get_messages_after(
+        test_user.id, chat_session.id, message_id=checkpoint_message.id
+    )
+
+    assert len(messages) == 1
+    assert messages[0].id == after_message.id
+
+
+@pytest.mark.asyncio
+async def test_get_messages_after_respects_limit(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that messages after a checkpoint respect the provided limit."""
+    repository = MessageRepository(session=async_session)
+    chat_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    base = datetime.now(UTC)
+
+    for index in range(3):
+        await repository.create(
+            create_message(
+                session_id=chat_session.id,
+                content=f"Message {index}",
+                created_at=base + timedelta(seconds=index),
+            )
+        )
+
+    messages = await repository.get_messages_after(
+        test_user.id, chat_session.id, message_id=None, limit=2
+    )
+
+    assert len(messages) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_messages_after_excludes_deleted(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that messages after a checkpoint exclude soft-deleted messages."""
+    repository = MessageRepository(session=async_session)
+    chat_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    base = datetime.now(UTC)
+
+    active_message = await repository.create(
+        create_message(
+            session_id=chat_session.id,
+            content="Active",
+            created_at=base,
+        )
+    )
+    deleted_message = create_message(
+        session_id=chat_session.id,
+        content="Deleted",
+        created_at=base + timedelta(seconds=1),
+    )
+    deleted_message.deleted_at = base + timedelta(seconds=2)
+    await repository.create(deleted_message)
+
+    messages = await repository.get_messages_after(
+        test_user.id, chat_session.id, message_id=None
+    )
+
+    assert len(messages) == 1
+    assert messages[0].id == active_message.id
+
+
+@pytest.mark.asyncio
+async def test_get_messages_after_returns_only_user_owned_messages(
+    async_session: AsyncSession,
+    test_user: User,
+    other_user: User,
+) -> None:
+    """Test that messages after a checkpoint are scoped to the requested user."""
+    repository = MessageRepository(session=async_session)
+    owned_session = await create_chat_session(async_session, user_id=test_user.id)
+    other_session = await create_chat_session(async_session, user_id=other_user.id)
+
+    owned_message = await repository.create(
+        create_message(session_id=owned_session.id, content="Owned message")
+    )
+    await repository.create(
+        create_message(session_id=other_session.id, content="Other message")
+    )
+
+    messages = await repository.get_messages_after(
+        test_user.id, owned_session.id, message_id=None
+    )
+
+    assert len(messages) == 1
+    assert messages[0].id == owned_message.id
+
+
+@pytest.mark.asyncio
+async def test_get_messages_after_returns_only_requested_session(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that messages after a checkpoint are scoped to the requested session."""
+    repository = MessageRepository(session=async_session)
+    first_session = await create_chat_session(async_session, user_id=test_user.id)
+    second_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    first_message = await repository.create(
+        create_message(session_id=first_session.id, content="First session message")
+    )
+    await repository.create(
+        create_message(session_id=second_session.id, content="Second session message")
+    )
+
+    messages = await repository.get_messages_after(
+        test_user.id, first_session.id, message_id=None
+    )
+
+    assert len(messages) == 1
+    assert messages[0].id == first_message.id
+
+
+@pytest.mark.asyncio
+async def test_get_messages_after_empty_success(
+    async_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """Test that messages after a checkpoint returns an empty list when none exist."""
+    repository = MessageRepository(session=async_session)
+    chat_session = await create_chat_session(async_session, user_id=test_user.id)
+
+    messages = await repository.get_messages_after(
+        test_user.id, chat_session.id, message_id=None
+    )
+
+    assert messages == []
+
+
+@pytest.mark.asyncio
 async def test_update_message_success(
     async_session: AsyncSession,
     test_user: User,

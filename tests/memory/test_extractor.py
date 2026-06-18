@@ -43,26 +43,38 @@ def _context_messages() -> list[LLMMessage]:
 
 @pytest.mark.asyncio
 async def test_extract_parses_structured_output(fake_openai_client: Mock) -> None:
-    """Test that extraction parses the structured JSON output."""
-    expected: dict[str, list[dict[str, Any]]] = {
-        "facts": [
-            {
-                "key": "name",
-                "value": "Alex",
-                "confidence": 1.0,
-                "source_text": "My name is Alex",
-            }
-        ]
-    }
+    """Test that extraction returns the parsed facts list from structured output."""
+    facts: list[dict[str, Any]] = [
+        {
+            "key": "name",
+            "value": "Alex",
+            "confidence": 1.0,
+            "source_text": "My name is Alex",
+        }
+    ]
     fake_openai_client.responses.create.return_value = SimpleNamespace(
-        output_text=json.dumps(expected)
+        output_text=json.dumps({"facts": facts})
     )
 
     extractor = MemoryExtractor(fake_openai_client)
 
     result = await extractor.extract(facts=[], context_messages=_context_messages())
 
-    assert result == expected
+    assert result == facts
+
+
+@pytest.mark.asyncio
+async def test_extract_returns_empty_list_when_facts_key_missing(
+    fake_openai_client: Mock,
+) -> None:
+    """Test that extraction returns an empty list when no facts key is present."""
+    fake_openai_client.responses.create.return_value = SimpleNamespace(output_text="{}")
+
+    extractor = MemoryExtractor(fake_openai_client)
+
+    result = await extractor.extract(facts=[], context_messages=_context_messages())
+
+    assert result == []
 
 
 @pytest.mark.asyncio

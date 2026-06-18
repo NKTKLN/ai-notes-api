@@ -47,6 +47,8 @@ def create_memory_response() -> ChatMemoryResponseSchema:
         session_id=TEST_SESSION_ID,
         summary="Test summary",
         facts=[{"key": "name", "value": "Alex"}],
+        is_summarizing=False,
+        last_summarized_message=None,
         created_at=now,
         updated_at=now,
     )
