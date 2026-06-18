@@ -5,13 +5,17 @@ This module provides business logic for working with chat sessions.
 
 from uuid import UUID
 
-from ai_notes_api.db.models import ChatSession, ChatSessionGenerationStatus
+from ai_notes_api.db.models import ChatMemory, ChatSession, ChatSessionGenerationStatus
 from ai_notes_api.exceptions import (
     ChatSessionNotFoundError,
     GenerationInProgressError,
     GenerationNotFoundError,
 )
-from ai_notes_api.repositories import ChatSessionListFilters, ChatSessionRepository
+from ai_notes_api.repositories import (
+    ChatMemoryRepository,
+    ChatSessionListFilters,
+    ChatSessionRepository,
+)
 from ai_notes_api.schemas import (
     ChatSessionCreateSchema,
     ChatSessionListQuerySchema,
@@ -23,18 +27,27 @@ class ChatSessionService:
     """Service for chat session-related business operations.
 
     Args:
-        repository (ChatSessionRepository): Repository used to perform chat
-            session database operations.
+        session_repository (ChatSessionRepository): Repository used to perform
+            chat session database operations.
+        memory_repository (ChatMemoryRepository): Repository used to perform
+            chat memory database operations.
     """
 
-    def __init__(self, repository: ChatSessionRepository) -> None:
+    def __init__(
+        self,
+        session_repository: ChatSessionRepository,
+        memory_repository: ChatMemoryRepository,
+    ) -> None:
         """Initialize the chat session service.
 
         Args:
-            repository (ChatSessionRepository): Chat session repository used by
-                the service.
+            session_repository (ChatSessionRepository): Chat session repository
+                used by the service.
+            memory_repository (ChatMemoryRepository): Chat memory repository
+                used by the service.
         """
-        self.repository = repository
+        self.sessions = session_repository
+        self.memories = memory_repository
 
     async def create_chat_session(
         self,
@@ -56,7 +69,13 @@ class ChatSessionService:
             title=data.title,
         )
 
-        return await self.repository.create(chat_session)
+        session = await self.sessions.create(chat_session)
+
+        chat_memory = ChatMemory(session_id=session.id)
+
+        await self.memories.create(chat_memory)
+
+        return session
 
     async def get_chat_sessions_list(
         self,
@@ -79,7 +98,7 @@ class ChatSessionService:
             offset=filters.offset,
         )
 
-        return await self.repository.get_list(user_id, repository_filters)
+        return await self.sessions.get_list(user_id, repository_filters)
 
     async def get_chat_session(
         self,
@@ -99,7 +118,7 @@ class ChatSessionService:
             ChatSessionNotFoundError: If no chat session with the given
                 identifier exists.
         """
-        chat_session = await self.repository.get_by_id_for_user(user_id, session_id)
+        chat_session = await self.sessions.get_by_id_for_user(user_id, session_id)
 
         if chat_session is None:
             raise ChatSessionNotFoundError()
@@ -126,7 +145,7 @@ class ChatSessionService:
             ChatSessionNotFoundError: If no chat session with the given
                 identifier exists.
         """
-        chat_session = await self.repository.get_by_id_for_user(user_id, session_id)
+        chat_session = await self.sessions.get_by_id_for_user(user_id, session_id)
 
         if chat_session is None:
             raise ChatSessionNotFoundError()
@@ -136,7 +155,7 @@ class ChatSessionService:
             if value is not None:
                 setattr(chat_session, field, value)
 
-        await self.repository.update(chat_session)
+        await self.sessions.update(chat_session)
 
         return chat_session
 
@@ -151,12 +170,12 @@ class ChatSessionService:
             ChatSessionNotFoundError: If no chat session with the given
                 identifier exists.
         """
-        chat_session = await self.repository.get_by_id_for_user(user_id, session_id)
+        chat_session = await self.sessions.get_by_id_for_user(user_id, session_id)
 
         if chat_session is None:
             raise ChatSessionNotFoundError()
 
-        await self.repository.soft_delete(chat_session)
+        await self.sessions.soft_delete(chat_session)
 
     async def acquire_generation_lock(
         self,
@@ -174,7 +193,7 @@ class ChatSessionService:
         Raises:
             GenerationInProgressError: If generation is already in progress.
         """
-        lock_acquired = await self.repository.acquire_generation_lock(
+        lock_acquired = await self.sessions.acquire_generation_lock(
             user_id=user_id,
             session_id=session_id,
             generation_id=generation_id,
@@ -196,7 +215,7 @@ class ChatSessionService:
             session_id (UUID): Unique chat session identifier.
             generation_id (UUID): Unique generation job identifier that owns the lock.
         """
-        await self.repository.release_generation_lock(
+        await self.sessions.release_generation_lock(
             user_id=user_id,
             session_id=session_id,
             generation_id=generation_id,
@@ -213,7 +232,7 @@ class ChatSessionService:
         Raises:
             ChatSessionNotFoundError: If no accessible chat session exists.
         """
-        chat_session = await self.repository.get_by_id_for_user(
+        chat_session = await self.sessions.get_by_id_for_user(
             user_id,
             session_id,
         )
@@ -232,7 +251,7 @@ class ChatSessionService:
             ChatSessionNotFoundError: If no accessible chat session exists.
             GenerationInProgressError: If a QUEUED or RUNNING job already exists.
         """
-        chat_session = await self.repository.get_by_id_for_user(user_id, session_id)
+        chat_session = await self.sessions.get_by_id_for_user(user_id, session_id)
 
         if chat_session is None:
             raise ChatSessionNotFoundError()
@@ -257,7 +276,7 @@ class ChatSessionService:
         Raises:
             GenerationNotFoundError: If the generation job does not own the lock.
         """
-        owns_lock = await self.repository.has_generation_lock(
+        owns_lock = await self.sessions.has_generation_lock(
             user_id=user_id,
             session_id=session_id,
             generation_id=generation_id,

@@ -130,8 +130,7 @@ class JobService:
         """Update a user's generation job.
 
         Args:
-            user_id (UUID): Unique identifier of the user who owns the generation
-                job.
+            user_id (UUID): Unique identifier of the user who owns the generation job.
             job_id (UUID): Unique generation job identifier.
             data (GenerationJobUpdateSchema): Validated data used to update the
                 generation job.

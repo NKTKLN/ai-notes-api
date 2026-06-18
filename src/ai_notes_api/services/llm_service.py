@@ -4,13 +4,14 @@ This module provides business logic for generating and streaming LLM responses.
 """
 
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
 from ai_notes_api.core import settings
 from ai_notes_api.db.models import Message
-from ai_notes_api.llm import LLMClient, PromptBuilder
-from ai_notes_api.llm.models import LLMResponse, LLMStreamEvent
+from ai_notes_api.llm import LLMClient
+from ai_notes_api.llm.models import LLMMessage, LLMResponse, LLMStreamEvent
+from ai_notes_api.memory import PromptBuilder
 from ai_notes_api.schemas import (
     AssistantMessageCreateSchema,
     ChatCompletionResponseSchema,
@@ -20,6 +21,7 @@ from ai_notes_api.services.chat_session import ChatSessionService
 from ai_notes_api.services.message import MessageService
 from ai_notes_api.services.note import NoteService
 from ai_notes_api.tools import build_registry
+from ai_notes_api.workers.tasks.memory import update_chat_memory_summary
 
 
 class LLMService:
@@ -32,7 +34,16 @@ class LLMService:
             validate access and manage generation locks.
         message_service (MessageService): Message service used to persist chat
             messages.
+
+    Attributes:
+        SYSTEM_PROMPT (ClassVar[str]): System prompt prepended to the chat context.
     """
+
+    SYSTEM_PROMPT: ClassVar[str] = (
+        "Respond in the user's language. Do not invent facts about the user. "
+        "Use note-management tools only when the user clearly asks for it."
+        # "Do not invent facts from documents: if data is missing, say so.\n"
+    )
 
     def __init__(
         self,
@@ -98,7 +109,7 @@ class LLMService:
         model_name = self._get_value(raw_response, "model")
         provider = self._get_value(raw_response, "provider")
 
-        return await self.messages.create_assistant_message(
+        assistant_message = await self.messages.create_assistant_message(
             user_id=user_id,
             data=AssistantMessageCreateSchema(
                 session_id=session_id,
@@ -110,6 +121,42 @@ class LLMService:
                 total_tokens=self._get_value(usage, "total_tokens"),
             ),
         )
+
+        update_chat_memory_summary.delay(str(user_id), str(session_id))
+
+        return assistant_message
+
+    async def _get_context_messages(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+    ) -> list[LLMMessage]:
+        """Get LLM context messages for a chat session.
+
+        Args:
+            user_id (UUID): Unique identifier of the user.
+            session_id (UUID): Unique identifier of the chat session.
+
+        Returns:
+            list[LLMMessage]: Context messages converted to the LLM message format.
+        """
+        raw_messages = await self.messages.get_context_messages(
+            user_id=user_id,
+            session_id=session_id,
+            limit=settings.llm_context_messages_limit,
+        )
+
+        context_messages: list[LLMMessage] = []
+
+        for message in raw_messages:
+            context_messages.append(
+                LLMMessage(
+                    role=message.role,
+                    content=message.content,
+                )
+            )
+
+        return context_messages
 
     async def _generate_response_locked(
         self,
@@ -139,16 +186,16 @@ class LLMService:
             data=message,
         )
 
-        context_messages = await self.messages.get_context_messages(
+        context_messages = await self._get_context_messages(
             user_id=user_id,
             session_id=message.session_id,
-            limit=settings.llm_context_messages_limit,
         )
 
-        input_data = PromptBuilder.build(context_messages)
+        input_data = PromptBuilder.build(context_messages=context_messages)
 
         while True:
             llm_response = await self.client.create_response(
+                instructions=self.SYSTEM_PROMPT,
                 input_data=input_data,
                 tools=tools,
             )
@@ -278,13 +325,11 @@ class LLMService:
         """Stream and persist an assistant response.
 
         Args:
-            user_id (UUID): Unique identifier of the user requesting the
-                response.
+            user_id (UUID): Unique identifier of the user requesting the response.
             message (UserMessageCreateSchema): Validated user message data.
 
         Yields:
-            LLMStreamEvent: Stream event containing a text delta or final
-            response.
+            LLMStreamEvent: Stream event containing a text delta or final response.
 
         Raises:
             ChatSessionNotFoundError: If no accessible chat session exists.
@@ -308,13 +353,12 @@ class LLMService:
                 data=message,
             )
 
-            context_messages = await self.messages.get_context_messages(
+            context_messages = await self._get_context_messages(
                 user_id=user_id,
                 session_id=message.session_id,
-                limit=settings.llm_context_messages_limit,
             )
 
-            input_data = PromptBuilder.build(context_messages)
+            input_data = PromptBuilder.build(context_messages=context_messages)
 
             llm_response: LLMResponse | None = None
 
@@ -322,6 +366,7 @@ class LLMService:
                 llm_response = None
 
                 async for event in self.client.stream_response_events(
+                    instructions=self.SYSTEM_PROMPT,
                     input_data=input_data,
                     tools=tools,
                 ):

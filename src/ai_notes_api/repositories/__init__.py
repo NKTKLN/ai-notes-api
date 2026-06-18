@@ -4,6 +4,7 @@ This package re-exports repository classes used for database access.
 """
 
 from .base import BaseRepository
+from .chat_memory import ChatMemoryRepository
 from .chat_session import ChatSessionRepository
 from .filters import (
     ChatSessionListFilters,
@@ -27,4 +28,5 @@ __all__ = [
     "NoteListFilters",
     "NoteRepository",
     "UserRepository",
+    "ChatMemoryRepository",
 ]

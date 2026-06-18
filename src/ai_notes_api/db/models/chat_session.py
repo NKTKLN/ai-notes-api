@@ -16,6 +16,7 @@ from ai_notes_api.db.models.base import Base
 from ai_notes_api.db.models.datetime import SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
+    from ai_notes_api.db.models.chat_memory import ChatMemory
     from ai_notes_api.db.models.generation_job import GenerationJob
     from ai_notes_api.db.models.message import Message
     from ai_notes_api.db.models.user import User
@@ -113,4 +114,10 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
     generation_jobs: Mapped[list["GenerationJob"]] = relationship(
         back_populates="chat_session",
         cascade="all, delete-orphan",
+    )
+
+    memory: Mapped["ChatMemory"] = relationship(
+        back_populates="chat_session",
+        cascade="all, delete-orphan",
+        uselist=False,
     )

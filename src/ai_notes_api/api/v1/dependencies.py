@@ -18,6 +18,7 @@ from ai_notes_api.exceptions import InvalidTokenError
 from ai_notes_api.integrations import openai_client
 from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
+    ChatMemoryRepository,
     ChatSessionRepository,
     GenerationJobRepository,
     MessageRepository,
@@ -26,6 +27,7 @@ from ai_notes_api.repositories import (
 )
 from ai_notes_api.services import (
     AuthService,
+    ChatMemoryService,
     ChatSessionService,
     JobService,
     LLMService,
@@ -80,7 +82,7 @@ def get_note_service(
     """
     repository = NoteRepository(session)
 
-    return NoteService(repository=repository)
+    return NoteService(repository)
 
 
 def get_auth_service(
@@ -97,7 +99,7 @@ def get_auth_service(
     """
     repository = UserRepository(session)
 
-    return AuthService(repository=repository)
+    return AuthService(repository)
 
 
 async def get_current_user(
@@ -133,9 +135,13 @@ def get_chat_session_service(
     Returns:
         ChatSessionService: Configured chat session service instance.
     """
-    repository = ChatSessionRepository(session)
+    sessions = ChatSessionRepository(session)
+    memories = ChatMemoryRepository(session)
 
-    return ChatSessionService(repository=repository)
+    return ChatSessionService(
+        session_repository=sessions,
+        memory_repository=memories,
+    )
 
 
 def get_message_service(
@@ -175,9 +181,16 @@ def get_llm_service(
     notes = NoteRepository(session)
     messages = MessageRepository(session)
     sessions = ChatSessionRepository(session)
+    memories = ChatMemoryRepository(session)
     notes_service = NoteService(notes)
-    sessions_service = ChatSessionService(sessions)
-    messages_service = MessageService(messages, sessions)
+    sessions_service = ChatSessionService(
+        session_repository=sessions,
+        memory_repository=memories,
+    )
+    messages_service = MessageService(
+        message_repository=messages,
+        session_repository=sessions,
+    )
 
     return LLMService(
         client=client,
@@ -201,9 +214,30 @@ def get_job_service(
     """
     jobs = GenerationJobRepository(session)
     sessions = ChatSessionRepository(session)
-    sessions_service = ChatSessionService(sessions)
+    memories = ChatMemoryRepository(session)
+    sessions_service = ChatSessionService(
+        session_repository=sessions,
+        memory_repository=memories,
+    )
 
     return JobService(
         job_repository=jobs,
         session_service=sessions_service,
     )
+
+
+def get_memory_service(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> ChatMemoryService:
+    """Provide a chat memory service instance.
+
+    Args:
+        session (AsyncSession): Asynchronous database session provided by FastAPI
+            dependency injection.
+
+    Returns:
+        ChatMemoryService: Configured chat memory service instance.
+    """
+    repository = ChatMemoryRepository(session)
+
+    return ChatMemoryService(repository)

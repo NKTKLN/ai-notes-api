@@ -11,11 +11,12 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_notes_api.db.models import GenerationJobStatus
-from ai_notes_api.db.session import async_session_factory
+from ai_notes_api.db.session import worker_session
 from ai_notes_api.exceptions.generation_job import GenerationNotFoundError
 from ai_notes_api.integrations import openai_client
 from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
+    ChatMemoryRepository,
     ChatSessionRepository,
     GenerationJobRepository,
     MessageRepository,
@@ -50,23 +51,26 @@ async def _run_generation_job(job_id: UUID) -> None:
         job_id (UUID): Unique generation job identifier.
 
     Raises:
-        GenerationNotFoundError: If no generation job with the given identifier
-            exists.
+        GenerationNotFoundError: If no generation job with the given identifier exists.
     """
     llm_client = LLMClient(openai_client)
 
-    async with async_session_factory() as session:
-        notes_repository = NoteRepository(session=session)
-        messages_repository = MessageRepository(session=session)
-        sessions_repository = ChatSessionRepository(session=session)
-        generation_job_repository = GenerationJobRepository(session=session)
+    async with worker_session() as session:
+        notes_repository = NoteRepository(session)
+        messages_repository = MessageRepository(session)
+        sessions_repository = ChatSessionRepository(session)
+        memories_repository = ChatMemoryRepository(session)
+        generation_job_repository = GenerationJobRepository(session)
 
-        notes_service = NoteService(repository=notes_repository)
+        notes_service = NoteService(notes_repository)
         messages_service = MessageService(
             message_repository=messages_repository,
             session_repository=sessions_repository,
         )
-        sessions_service = ChatSessionService(repository=sessions_repository)
+        sessions_service = ChatSessionService(
+            session_repository=sessions_repository,
+            memory_repository=memories_repository,
+        )
 
         generation_job = await generation_job_repository.get_by_id(job_id)
 

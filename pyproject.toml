@@ -1,6 +1,6 @@
 [project]
 name = "ai_notes_api"
-version = "0.3.0"
+version = "0.4.0"
 description = "AI Note's API"
 authors = [{ name = "NKTKLN", email = "nktkln@nktkln.com" }]
 readme = "README.md"

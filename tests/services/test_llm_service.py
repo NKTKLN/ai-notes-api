@@ -143,15 +143,19 @@ class FakeLLMClient:
         self.stream_input: Any = None
         self.create_tools: Any = None
         self.stream_tools: Any = None
+        self.create_instructions: str | None = None
+        self.stream_instructions: str | None = None
 
     async def create_response(
         self,
         input_data: str | list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
+        instructions: str | None = None,
     ) -> LLMResponse:
         """Return the configured response."""
         self.create_input = input_data
         self.create_tools = tools
+        self.create_instructions = instructions
         assert self.response is not None
         return self.response
 
@@ -159,10 +163,12 @@ class FakeLLMClient:
         self,
         input_data: str | list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
+        instructions: str | None = None,
     ) -> AsyncGenerator[LLMStreamEvent]:
         """Yield the configured stream events."""
         self.stream_input = input_data
         self.stream_tools = tools
+        self.stream_instructions = instructions
         for event in self.events:
             yield event
 
@@ -271,7 +277,7 @@ async def test_generate_response_builds_prompt_from_context() -> None:
     )
 
     assert isinstance(client.create_input, list)
-    assert client.create_input[0]["role"] == MessageRole.SYSTEM
+    assert client.create_instructions == LLMService.SYSTEM_PROMPT
     assert any(item["content"] == "Earlier message" for item in client.create_input)
 
 
