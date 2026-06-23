@@ -4,13 +4,12 @@ This module defines the SQLAlchemy ORM model for chat documents and the enum
 used to track document processing status.
 """
 
-from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, Uuid
 from sqlalchemy import Enum as SqlEnum
+from sqlalchemy import ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_notes_api.db.models.base import Base
@@ -62,8 +61,6 @@ class Document(Base, TimestampMixin, SoftDeleteMixin):
         status (Mapped[DocumentStatus]): Current document processing status.
         error_message (Mapped[str | None]): Optional error message if document
             processing failed.
-        processed_at (Mapped[datetime | None]): Date and time when the document
-            finished processing.
         document_chunks (Mapped[list[DocumentChunk]]): Chunks that belong to the
             document.
         rag_query_sources (Mapped[list[RagQuerySource]]): RAG query sources that
@@ -146,12 +143,6 @@ class Document(Base, TimestampMixin, SoftDeleteMixin):
 
     error_message: Mapped[str | None] = mapped_column(
         Text,
-        nullable=True,
-    )
-
-    processed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        default=None,
         nullable=True,
     )
 
