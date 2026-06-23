@@ -118,12 +118,12 @@ class DocumentChunkRepository(BaseRepository):
 
         return document_chunks
 
-    async def search_in_user_session(
+    async def vector_search_in_user_session(
         self,
         query_embedding: list[float],
         user_id: UUID,
         session_id: UUID,
-        limit: int = 5,
+        top_k: int = 5,
     ) -> list[DocumentChunk]:
         """Return the most similar document chunks in a user's chat session.
 
@@ -132,7 +132,7 @@ class DocumentChunkRepository(BaseRepository):
                 chunk embeddings against.
             user_id (UUID): Unique identifier of the user who owns the chunks.
             session_id (UUID): Unique chat session identifier.
-            limit (int): Maximum number of chunks to return.
+            top_k (int): Maximum number of chunks to return.
 
         Returns:
             list[DocumentChunk]: List of matching non-deleted document chunks
@@ -146,7 +146,7 @@ class DocumentChunkRepository(BaseRepository):
             .where(DocumentChunk.session_id == session_id)
             .where(DocumentChunk.deleted_at.is_(None))
             .order_by(distance)
-            .limit(limit)
+            .limit(top_k)
         )
 
         result = await self.session.execute(stmt)
@@ -154,11 +154,11 @@ class DocumentChunkRepository(BaseRepository):
 
         logger.debug(
             "Document chunks search completed: count={}, user_id={}, "
-            "session_id={}, limit={}",
+            "session_id={}, top_k={}",
             len(document_chunks),
             user_id,
             session_id,
-            limit,
+            top_k,
         )
 
         return document_chunks
