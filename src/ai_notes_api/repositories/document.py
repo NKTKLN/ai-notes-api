@@ -145,10 +145,10 @@ class DocumentRepository(BaseRepository):
         return document
 
     async def soft_delete(self, document: Document) -> None:
-        """Soft-delete a document.
+        """Soft-delete a document and its chunks.
 
-        Sets the deletion timestamp for the given document instead of removing
-        the row from the database.
+        Sets the deletion timestamp for the given document and all of its
+        non-deleted chunks instead of removing rows from the database.
 
         Args:
             document (Document): Document instance to soft-delete.
