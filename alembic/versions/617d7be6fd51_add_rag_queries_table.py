@@ -8,6 +8,7 @@ Create Date: 2026-06-23 05:52:35.802978
 from typing import Sequence, Union
 
 from alembic import op
+from pgvector.sqlalchemy import VECTOR
 import sqlalchemy as sa
 
 
@@ -52,7 +53,7 @@ def upgrade() -> None:
     sa.Column('chunk_index', sa.Integer(), nullable=False),
     sa.Column('content', sa.Text(), nullable=False),
     sa.Column('content_hash', sa.String(length=255), nullable=False),
-    sa.Column('embedding', pgvector.sqlalchemy.vector.VECTOR(dim=1536), nullable=False),
+    sa.Column('embedding', VECTOR(dim=1536), nullable=False),
     sa.Column('embedding_model', sa.String(length=255), nullable=False),
     sa.Column('token_count', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
