@@ -83,7 +83,6 @@ class ChatMemory(Base, TimestampMixin):
             ondelete="SET NULL",
         ),
         nullable=True,
-        default=None,
         index=True,
     )
 
