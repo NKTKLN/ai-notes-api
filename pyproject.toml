@@ -24,7 +24,7 @@ dependencies = [
     "celery>=5.6.3",
     "redis>=8.0.0",
     "pgvector>=0.4.2",
-    "minio>=7.2.20",
+    "aioboto3>=15.5.0",
 ]
 
 [dependency-groups]
