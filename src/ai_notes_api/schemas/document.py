@@ -27,8 +27,6 @@ class DocumentRead(BaseModel):
             processing failed.
         created_at (datetime): Date and time when the document was created.
         updated_at (datetime): Date and time when the document was last updated.
-        processed_at (datetime | None): Optional date and time when the document
-            finished processing.
     """
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
@@ -46,7 +44,6 @@ class DocumentRead(BaseModel):
 
     created_at: datetime
     updated_at: datetime
-    processed_at: datetime | None = None
 
 
 class DocumentListResponse(BaseModel):

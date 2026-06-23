@@ -21,6 +21,7 @@ from ai_notes_api.schemas.document import (
     DocumentRead,
     DocumentUploadResponse,
 )
+from ai_notes_api.schemas.document_processing_job import DocumentProcessingJobRead
 from ai_notes_api.schemas.error import ErrorResponseSchema
 from ai_notes_api.schemas.generation_job import (
     GenerationJobCreateSchema,
@@ -85,6 +86,7 @@ __all__ = [
     "DocumentDeleteResponse",
     "DocumentDownloadUrlResponse",
     "DocumentChunkRead",
+    "DocumentProcessingJobRead",
     "RagQueryRequest",
     "RagSourceRead",
     "RagQueryResponse",
