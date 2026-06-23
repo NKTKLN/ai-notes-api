@@ -61,8 +61,7 @@ class RagQuery(Base, TimestampMixin):
             finished.
         error_message (Mapped[str | None]): Optional error message if the RAG
             query failed.
-        sources (Mapped[list[RagQuerySource]]): Sources retrieved for the RAG
-            query.
+        sources (Mapped[list[RagQuerySource]]): Sources retrieved for the RAG query.
     """
 
     __tablename__ = "rag_queries"
