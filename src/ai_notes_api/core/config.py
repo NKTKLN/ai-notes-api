@@ -33,12 +33,12 @@ class Settings(BaseSettings):
             sent to the LLM.
         celery_broker_url (str): Celery broker URL.
         celery_result_backend (str): Celery result backend URL.
-        minio_endpoint (str): MinIO server endpoint (host and port).
-        minio_access_key (str): MinIO access key.
-        minio_secret_key (str): MinIO secret key.
-        minio_secure (bool): Whether to use HTTPS when connecting to MinIO.
-        minio_bucket_name (str): Name of the bucket used to store documents.
-        minio_presigned_url_expire_seconds (int): Lifetime of presigned document
+        s3_endpoint_url (str): S3 endpoint URL.
+        s3_access_key_id (str): S3 access key ID.
+        s3_secret_access_key (str): S3 secret access key.
+        s3_region (str): S3 region name.
+        s3_bucket_name (str): Name of the bucket used to store documents.
+        s3_presigned_url_expire_seconds (int): Lifetime of presigned document
             URLs in seconds.
         log_format (str): Format string used by Loguru for log messages.
         database_url (str): Async PostgreSQL database connection URL.
@@ -70,12 +70,12 @@ class Settings(BaseSettings):
     celery_broker_url: str = Field(...)
     celery_result_backend: str = Field(...)
 
-    minio_endpoint: str = Field(...)
-    minio_access_key: str = Field(...)
-    minio_secret_key: str = Field(...)
-    minio_secure: bool = Field(default=False)
-    minio_bucket_name: str = Field(default="documents")
-    minio_presigned_url_expire_seconds: int = Field(default=3600)
+    s3_endpoint_url: str = Field(...)
+    s3_access_key_id: str = Field(...)
+    s3_secret_access_key: str = Field(...)
+    s3_region: str = Field(default="us-east-1")
+    s3_bucket_name: str = Field(default="documents")
+    s3_presigned_url_expire_seconds: int = Field(default=3600)
 
     log_format: str = (
         "<cyan>[{time:DD/MM/YY HH:mm:ss}]</cyan> "

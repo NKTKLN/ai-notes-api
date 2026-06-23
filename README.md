@@ -96,12 +96,12 @@ Required variables:
 * `LLM_CONTEXT_MESSAGES_LIMIT` - number of recent messages sent as context
 * `CELERY_BROKER_URL` - Redis URL for the Celery broker
 * `CELERY_RESULT_BACKEND` - Redis URL for the Celery result backend
-* `MINIO_ENDPOINT` - MinIO server endpoint (host and port)
-* `MINIO_ACCESS_KEY` - MinIO access key
-* `MINIO_SECRET_KEY` - MinIO secret key
-* `MINIO_SECURE` - `false` or `true`, whether to use HTTPS for MinIO
-* `MINIO_BUCKET_NAME` - bucket used to store documents, default `documents`
-* `MINIO_PRESIGNED_URL_EXPIRE_SECONDS` - presigned document URL lifetime in seconds
+* `S3_ENDPOINT_URL` - S3 endpoint URL
+* `S3_ACCESS_KEY_ID` - S3 access key ID
+* `S3_SECRET_ACCESS_KEY` - S3 secret access key
+* `S3_REGION` - S3 region name, default `us-east-1`
+* `S3_BUCKET_NAME` - bucket used to store documents, default `documents`
+* `S3_PRESIGNED_URL_EXPIRE_SECONDS` - presigned document URL lifetime in seconds
 
 The database connection URL is composed automatically from the `POSTGRES_*` values.
 
