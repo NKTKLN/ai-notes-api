@@ -19,6 +19,7 @@ from ai_notes_api.db.models.datetime import SoftDeleteMixin, TimestampMixin
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_session import ChatSession
     from ai_notes_api.db.models.document_chunk import DocumentChunk
+    from ai_notes_api.db.models.document_processing_job import DocumentProcessingJob
     from ai_notes_api.db.models.rag_query_source import RagQuerySource
     from ai_notes_api.db.models.user import User
 
@@ -67,6 +68,8 @@ class Document(Base, TimestampMixin, SoftDeleteMixin):
             document.
         rag_query_sources (Mapped[list[RagQuerySource]]): RAG query sources that
             reference the document.
+        processing_jobs (Mapped[list[DocumentProcessingJob]]): Processing jobs
+            that belong to the document.
     """
 
     __tablename__ = "documents"
@@ -158,6 +161,11 @@ class Document(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     rag_query_sources: Mapped[list["RagQuerySource"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+    )
+
+    processing_jobs: Mapped[list["DocumentProcessingJob"]] = relationship(
         back_populates="document",
         cascade="all, delete-orphan",
     )

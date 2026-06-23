@@ -9,6 +9,10 @@ from ai_notes_api.db.models.chat_session import ChatSession, ChatSessionGenerati
 from ai_notes_api.db.models.datetime import SoftDeleteMixin, TimestampMixin
 from ai_notes_api.db.models.document import Document, DocumentStatus
 from ai_notes_api.db.models.document_chunk import DocumentChunk
+from ai_notes_api.db.models.document_processing_job import (
+    DocumentProcessingJob,
+    DocumentProcessingJobStatus,
+)
 from ai_notes_api.db.models.generation_job import GenerationJob, GenerationJobStatus
 from ai_notes_api.db.models.message import Message, MessageRole
 from ai_notes_api.db.models.note import ModelSource, Note
@@ -36,4 +40,6 @@ __all__ = [
     "RagQuery",
     "RagQueryStatus",
     "RagQuerySource",
+    "DocumentProcessingJob",
+    "DocumentProcessingJobStatus",
 ]
