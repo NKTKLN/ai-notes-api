@@ -1,15 +1,14 @@
 """Document storage module.
 
 This module provides a storage helper for uploading, downloading, and deleting
-documents in MinIO object storage.
+documents in S3 object storage.
 """
 
-from datetime import timedelta
-from io import BytesIO
+from typing import Any
 from uuid import UUID
 
+from botocore.exceptions import ClientError
 from loguru import logger
-from minio import Minio
 
 from ai_notes_api.core import settings
 
@@ -18,23 +17,25 @@ class DocumentStorage:
     """Object storage helper for documents.
 
     Args:
-        client (Minio): MinIO client used to perform object storage operations.
+        client (Any): Asynchronous S3 client used to perform object storage operations.
     """
 
-    def __init__(self, client: Minio) -> None:
+    def __init__(self, client: Any) -> None:
         """Initialize the document storage helper.
 
         Args:
-            client (Minio): MinIO client used to perform object storage
+            client (Any): Asynchronous S3 client used to perform object storage
                 operations.
         """
         self.client = client
-        self.bucket = settings.minio_bucket_name
+        self.bucket = settings.s3_bucket_name
 
-    def ensure_bucket(self) -> None:
+    async def ensure_bucket(self) -> None:
         """Create the storage bucket if it does not already exist."""
-        if not self.client.bucket_exists(self.bucket):
-            self.client.make_bucket(self.bucket)
+        try:
+            await self.client.head_bucket(Bucket=self.bucket)
+        except ClientError:
+            await self.client.create_bucket(Bucket=self.bucket)
             logger.info("Storage bucket created: bucket={}", self.bucket)
 
     def build_object_name(
@@ -55,7 +56,7 @@ class DocumentStorage:
         """
         return f"users/{user_id}/documents/{document_id}/original/{filename}"
 
-    def upload_file(
+    async def upload_file(
         self,
         user_id: UUID,
         document_id: UUID,
@@ -75,7 +76,7 @@ class DocumentStorage:
         Returns:
             str: Object name under which the document was stored.
         """
-        self.ensure_bucket()
+        await self.ensure_bucket()
 
         object_name = self.build_object_name(
             user_id=user_id,
@@ -83,12 +84,11 @@ class DocumentStorage:
             filename=filename,
         )
 
-        self.client.put_object(
-            bucket_name=self.bucket,
-            object_name=object_name,
-            data=BytesIO(data),
-            length=len(data),
-            content_type=content_type,
+        await self.client.put_object(
+            Bucket=self.bucket,
+            Key=object_name,
+            Body=data,
+            ContentType=content_type,
         )
 
         logger.info(
@@ -99,7 +99,7 @@ class DocumentStorage:
 
         return object_name
 
-    def download_file(self, object_name: str) -> bytes:
+    async def download_file(self, object_name: str) -> bytes:
         """Download a document from object storage.
 
         Args:
@@ -108,19 +108,23 @@ class DocumentStorage:
         Returns:
             bytes: Raw document content.
         """
-        response = self.client.get_object(self.bucket, object_name)
+        response = await self.client.get_object(
+            Bucket=self.bucket,
+            Key=object_name,
+        )
+
+        body = response["Body"]
 
         try:
-            data = response.read()
+            data: bytes = await body.read()
         finally:
-            response.close()
-            response.release_conn()
+            body.close()
 
         logger.debug("Document downloaded: object_name={}", object_name)
 
         return data
 
-    def get_presigned_download_url(
+    async def get_presigned_download_url(
         self,
         object_name: str,
         expires_in_seconds: int | None = None,
@@ -136,12 +140,12 @@ class DocumentStorage:
             str: Presigned URL used to download the document.
         """
         if expires_in_seconds is None:
-            expires_in_seconds = settings.minio_presigned_url_expire_seconds
+            expires_in_seconds = settings.s3_presigned_url_expire_seconds
 
-        url = self.client.presigned_get_object(
-            bucket_name=self.bucket,
-            object_name=object_name,
-            expires=timedelta(seconds=expires_in_seconds),
+        url: str = await self.client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": self.bucket, "Key": object_name},
+            ExpiresIn=expires_in_seconds,
         )
 
         logger.debug(
@@ -152,12 +156,12 @@ class DocumentStorage:
 
         return url
 
-    def delete_file(self, object_name: str) -> None:
+    async def delete_file(self, object_name: str) -> None:
         """Delete a document from object storage.
 
         Args:
             object_name (str): Object name within the storage bucket.
         """
-        self.client.remove_object(self.bucket, object_name)
+        await self.client.delete_object(Bucket=self.bucket, Key=object_name)
 
         logger.info("Document deleted: object_name={}", object_name)
