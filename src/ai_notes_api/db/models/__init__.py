@@ -8,9 +8,11 @@ from .chat_memory import ChatMemory
 from .chat_session import ChatSession, ChatSessionGenerationStatus
 from .datetime import SoftDeleteMixin, TimestampMixin
 from .document import Document, DocumentStatus
+from .document_chunk import DocumentChunk
 from .generation_job import GenerationJob, GenerationJobStatus
 from .message import Message, MessageRole
 from .note import ModelSource, Note
+from .rag_query import RagQuery, RagQueryStatus
 from .user import User
 
 __all__ = [
@@ -29,4 +31,7 @@ __all__ = [
     "ChatMemory",
     "Document",
     "DocumentStatus",
+    "DocumentChunk",
+    "RagQuery",
+    "RagQueryStatus",
 ]
