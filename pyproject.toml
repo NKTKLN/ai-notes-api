@@ -76,7 +76,7 @@ extend-include = ["*.ipynb"]
 exclude = [".git", "__pycache__", "build", "dist", ".venv", "tmp", "alembic"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*"]
+module = ["celery.*", "aioboto3.*", "botocore.*"]
 ignore_missing_imports = true
 
 [tool.ruff.format]
