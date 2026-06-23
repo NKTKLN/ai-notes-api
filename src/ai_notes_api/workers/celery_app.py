@@ -13,7 +13,11 @@ celery_app = Celery(
     "ai_notes_api_worker",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["ai_notes_api.workers.tasks.generation"],
+    include=[
+        "ai_notes_api.workers.tasks.generation",
+        "ai_notes_api.workers.tasks.memory",
+        "ai_notes_api.workers.tasks.processing",
+    ],
 )
 
 
