@@ -266,7 +266,6 @@ erDiagram
         string storage_object_name
         enum status "document_status"
         text error_message "null"
-        datetime processed_at "null"
         datetime created_at
         datetime updated_at
         datetime deleted_at "null"
