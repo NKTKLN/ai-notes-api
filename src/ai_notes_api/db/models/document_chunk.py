@@ -26,24 +26,19 @@ class DocumentChunk(Base, TimestampMixin, SoftDeleteMixin):
 
     Attributes:
         id (Mapped[UUID]): Unique document chunk identifier.
-        user_id (Mapped[UUID]): Identifier of the user who owns the document
-            chunk.
+        user_id (Mapped[UUID]): Identifier of the user who owns the document chunk.
         user (Mapped[User]): User who owns the document chunk.
         session_id (Mapped[UUID]): Identifier of the chat session that owns the
             document chunk.
-        chat_session (Mapped[ChatSession]): Chat session that owns the document
-            chunk.
-        document_id (Mapped[UUID]): Identifier of the document the chunk belongs
-            to.
+        chat_session (Mapped[ChatSession]): Chat session that owns the document chunk.
+        document_id (Mapped[UUID]): Identifier of the document the chunk belongs to.
         document (Mapped[Document]): Document the chunk belongs to.
         chunk_index (Mapped[int]): Position of the chunk within the document.
         content (Mapped[str]): Text content of the chunk.
         content_hash (Mapped[str]): Hash of the chunk content.
         embedding (Mapped[list[float]]): Vector embedding of the chunk content.
-        embedding_model (Mapped[str]): Name of the model used to produce the
-            embedding.
-        token_count (Mapped[int | None]): Optional number of tokens in the
-            chunk.
+        embedding_model (Mapped[str]): Name of the model used to produce the embedding.
+        token_count (Mapped[int | None]): Optional number of tokens in the chunk.
         rag_query_sources (Mapped[list[RagQuerySource]]): RAG query sources that
             reference the chunk.
     """
