@@ -7,6 +7,7 @@ from ai_notes_api.services.auth import AuthService
 from ai_notes_api.services.chat_memory import ChatMemoryService
 from ai_notes_api.services.chat_session import ChatSessionService
 from ai_notes_api.services.document import DocumentService
+from ai_notes_api.services.document_processing_service import DocumentProcessingService
 from ai_notes_api.services.generation_job import JobService
 from ai_notes_api.services.llm_service import LLMService
 from ai_notes_api.services.message import MessageService
@@ -21,4 +22,5 @@ __all__ = [
     "LLMService",
     "ChatMemoryService",
     "DocumentService",
+    "DocumentProcessingService",
 ]
