@@ -122,18 +122,15 @@ class GenerationJob(Base, TimestampMixin):
 
     error: Mapped[str | None] = mapped_column(
         Text,
-        default=None,
         nullable=True,
     )
 
     started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        default=None,
         nullable=True,
     )
 
     finished_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        default=None,
         nullable=True,
     )

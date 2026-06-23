@@ -18,6 +18,7 @@ from ai_notes_api.db.models.datetime import SoftDeleteMixin, TimestampMixin
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_memory import ChatMemory
     from ai_notes_api.db.models.document import Document
+    from ai_notes_api.db.models.document_chunk import DocumentChunk
     from ai_notes_api.db.models.generation_job import GenerationJob
     from ai_notes_api.db.models.message import Message
     from ai_notes_api.db.models.user import User
@@ -95,14 +96,12 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
 
     generation_id: Mapped[UUID | None] = mapped_column(
         Uuid,
-        default=None,
         nullable=True,
         index=True,
     )
 
     generation_started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        default=None,
         nullable=True,
     )
 
@@ -123,6 +122,11 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     documents: Mapped[list["Document"]] = relationship(
+        back_populates="chat_session",
+        cascade="all, delete-orphan",
+    )
+
+    document_chunks: Mapped[list["DocumentChunk"]] = relationship(
         back_populates="chat_session",
         cascade="all, delete-orphan",
     )

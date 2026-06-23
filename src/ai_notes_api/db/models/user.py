@@ -15,6 +15,7 @@ from ai_notes_api.db.models.datetime import TimestampMixin
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_session import ChatSession
     from ai_notes_api.db.models.document import Document
+    from ai_notes_api.db.models.document_chunk import DocumentChunk
     from ai_notes_api.db.models.generation_job import GenerationJob
     from ai_notes_api.db.models.note import Note
 
@@ -34,6 +35,8 @@ class User(Base, TimestampMixin):
         generation_jobs (Mapped[list[GenerationJob]]): Generation jobs owned by
             the user.
         documents (Mapped[list[Document]]): Documents owned by the user.
+        document_chunks (Mapped[list[DocumentChunk]]): Document chunks owned by
+            the user.
     """
 
     __tablename__ = "users"
@@ -84,6 +87,11 @@ class User(Base, TimestampMixin):
     )
 
     documents: Mapped[list["Document"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    document_chunks: Mapped[list["DocumentChunk"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
