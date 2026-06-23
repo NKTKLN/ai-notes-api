@@ -165,6 +165,176 @@ task lint
 task check
 ```
 
+## 🗄 Database schema
+
+Entity-relationship diagram for the database models:
+
+```mermaid
+erDiagram
+    users {
+        uuid id PK
+        string email UK
+        string username "null"
+        string hashed_password
+        bool is_active
+        bool is_superuser
+        datetime created_at
+        datetime updated_at
+    }
+
+    notes {
+        uuid id PK
+        uuid user_id FK
+        string title
+        text content
+        string_array tags
+        enum source "model_source"
+        string model_name "null"
+        jsonb model_metadata
+        datetime created_at
+        datetime updated_at
+        datetime deleted_at "null"
+    }
+
+    chat_sessions {
+        uuid id PK
+        uuid user_id FK
+        string title
+        enum generation_status "chat_session_generation_status"
+        uuid generation_id "null"
+        datetime generation_started_at "null"
+        datetime created_at
+        datetime updated_at
+        datetime deleted_at "null"
+    }
+
+    messages {
+        uuid id PK
+        uuid session_id FK
+        text content
+        enum role "message_role"
+        string provider "null"
+        string model_name "null"
+        int prompt_tokens "null"
+        int completion_tokens "null"
+        int total_tokens "null"
+        datetime created_at
+        datetime updated_at
+        datetime deleted_at "null"
+    }
+
+    chat_memories {
+        uuid id PK
+        uuid session_id FK,UK
+        text summary
+        jsonb facts
+        bool is_summarizing
+        uuid last_summarized_message_id FK "null"
+        datetime created_at
+        datetime updated_at
+    }
+
+    generation_jobs {
+        uuid id PK
+        uuid user_id FK
+        uuid session_id FK
+        enum status "generation_job_status"
+        text input_message
+        uuid output_message_id FK "null"
+        text error "null"
+        datetime started_at "null"
+        datetime finished_at "null"
+        datetime created_at
+        datetime updated_at
+    }
+
+    documents {
+        uuid id PK
+        uuid user_id FK
+        uuid session_id FK
+        string filename
+        string content_type
+        int file_size
+        string checksum_sha256
+        string storage_bucket
+        string storage_object_name
+        enum status "document_status"
+        text error_message "null"
+        datetime created_at
+        datetime updated_at
+        datetime deleted_at "null"
+    }
+
+    document_chunks {
+        uuid id PK
+        uuid user_id FK
+        uuid session_id FK
+        uuid document_id FK
+        int chunk_index
+        text content
+        string content_hash
+        vector embedding
+        string embedding_model
+        int token_count "null"
+        datetime created_at
+        datetime updated_at
+        datetime deleted_at "null"
+    }
+
+    rag_queries {
+        uuid id PK
+        uuid user_id FK
+        uuid session_id FK
+        text question
+        text answer "null"
+        string provider "null"
+        string model "null"
+        int prompt_tokens "null"
+        int completion_tokens "null"
+        int total_tokens "null"
+        int top_k
+        enum status "rag_query_status"
+        datetime finished_at "null"
+        text error_message "null"
+        datetime created_at
+        datetime updated_at
+    }
+
+    rag_query_sources {
+        uuid id PK
+        uuid rag_query_id FK
+        uuid document_id FK
+        uuid chunk_id FK
+        float score
+        int rank
+        text content_preview
+        datetime created_at
+        datetime updated_at
+    }
+
+    users ||--o{ notes : owns
+    users ||--o{ chat_sessions : owns
+    users ||--o{ generation_jobs : owns
+    users ||--o{ documents : owns
+    users ||--o{ document_chunks : owns
+    users ||--o{ rag_queries : owns
+
+    chat_sessions ||--o{ messages : contains
+    chat_sessions ||--o| chat_memories : has
+    chat_sessions ||--o{ generation_jobs : contains
+    chat_sessions ||--o{ documents : contains
+    chat_sessions ||--o{ document_chunks : contains
+    chat_sessions ||--o{ rag_queries : contains
+
+    messages ||--o| generation_jobs : "output of"
+    messages ||--o| chat_memories : "last summarized"
+
+    documents ||--o{ document_chunks : "split into"
+    documents ||--o{ rag_query_sources : "referenced by"
+    document_chunks ||--o{ rag_query_sources : "referenced by"
+    rag_queries ||--o{ rag_query_sources : "retrieved"
+```
+
 ## 🛠 Database migrations
 
 * Create a new Alembic revision:
