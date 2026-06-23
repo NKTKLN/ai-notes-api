@@ -13,6 +13,7 @@ from .generation_job import GenerationJob, GenerationJobStatus
 from .message import Message, MessageRole
 from .note import ModelSource, Note
 from .rag_query import RagQuery, RagQueryStatus
+from .rag_query_source import RagQuerySource
 from .user import User
 
 __all__ = [
@@ -34,4 +35,5 @@ __all__ = [
     "DocumentChunk",
     "RagQuery",
     "RagQueryStatus",
+    "RagQuerySource",
 ]

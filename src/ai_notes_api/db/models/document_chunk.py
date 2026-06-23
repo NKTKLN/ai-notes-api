@@ -17,6 +17,7 @@ from ai_notes_api.db.models.datetime import SoftDeleteMixin, TimestampMixin
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_session import ChatSession
     from ai_notes_api.db.models.document import Document
+    from ai_notes_api.db.models.rag_query_source import RagQuerySource
     from ai_notes_api.db.models.user import User
 
 
@@ -43,6 +44,8 @@ class DocumentChunk(Base, TimestampMixin, SoftDeleteMixin):
             embedding.
         token_count (Mapped[int | None]): Optional number of tokens in the
             chunk.
+        rag_query_sources (Mapped[list[RagQuerySource]]): RAG query sources that
+            reference the chunk.
     """
 
     __tablename__ = "document_chunks"
@@ -118,4 +121,9 @@ class DocumentChunk(Base, TimestampMixin, SoftDeleteMixin):
 
     token_count: Mapped[int | None] = mapped_column(
         nullable=True,
+    )
+
+    rag_query_sources: Mapped[list["RagQuerySource"]] = relationship(
+        back_populates="chunk",
+        cascade="all, delete-orphan",
     )

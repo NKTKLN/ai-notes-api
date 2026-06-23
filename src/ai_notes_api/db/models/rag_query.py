@@ -18,6 +18,7 @@ from ai_notes_api.db.models.datetime import TimestampMixin
 
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_session import ChatSession
+    from ai_notes_api.db.models.rag_query_source import RagQuerySource
     from ai_notes_api.db.models.user import User
 
 
@@ -60,6 +61,8 @@ class RagQuery(Base, TimestampMixin):
             finished.
         error_message (Mapped[str | None]): Optional error message if the RAG
             query failed.
+        sources (Mapped[list[RagQuerySource]]): Sources retrieved for the RAG
+            query.
     """
 
     __tablename__ = "rag_queries"
@@ -153,4 +156,9 @@ class RagQuery(Base, TimestampMixin):
         Text,
         default=None,
         nullable=True,
+    )
+
+    sources: Mapped[list["RagQuerySource"]] = relationship(
+        back_populates="rag_query",
+        cascade="all, delete-orphan",
     )
