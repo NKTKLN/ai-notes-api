@@ -29,6 +29,25 @@ services:
       timeout: 5s
       retries: 10
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: shrimp
+      MINIO_ROOT_PASSWORD: shrimp
+    volumes:
+      - ai_notes_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   api:
     build: .
     container_name: ai_notes_api
@@ -47,6 +66,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
 
   worker:
     build: .
@@ -60,11 +81,9 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     healthcheck:
-      test:
-        ["CMD", "celery", "-A", "ai_notes_api.workers.celery_app.celery_app",
-         "inspect", "ping", "-d", "celery@$${HOSTNAME}"]
+      test: ["CMD-SHELL", "celery -A ai_notes_api.workers.celery_app.celery_app inspect ping -d celery@$${HOSTNAME} --timeout=10"]
       interval: 30s
-      timeout: 10s
+      timeout: 15s
       start_period: 20s
       retries: 3
     depends_on:
@@ -72,6 +91,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
 
 volumes:
   ai_notes_pg_data:
+  ai_notes_minio_data:
