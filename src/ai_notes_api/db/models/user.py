@@ -14,6 +14,7 @@ from ai_notes_api.db.models.datetime import TimestampMixin
 
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_session import ChatSession
+    from ai_notes_api.db.models.document import Document
     from ai_notes_api.db.models.generation_job import GenerationJob
     from ai_notes_api.db.models.note import Note
 
@@ -29,8 +30,10 @@ class User(Base, TimestampMixin):
         is_active (Mapped[bool]): Whether the user account is active.
         is_superuser (Mapped[bool]): Whether the user has superuser privileges.
         notes (Mapped[list[Note]]): Notes owned by the user.
-        chat_sessions (Mapped[list[ChatSession]]): Chat sessions owned by the
-            user.
+        chat_sessions (Mapped[list[ChatSession]]): Chat sessions owned by the user.
+        generation_jobs (Mapped[list[GenerationJob]]): Generation jobs owned by
+            the user.
+        documents (Mapped[list[Document]]): Documents owned by the user.
     """
 
     __tablename__ = "users"
@@ -76,6 +79,11 @@ class User(Base, TimestampMixin):
     )
 
     generation_jobs: Mapped[list["GenerationJob"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    documents: Mapped[list["Document"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

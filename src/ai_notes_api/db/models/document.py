@@ -17,6 +17,7 @@ from ai_notes_api.db.models.datetime import SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_session import ChatSession
+    from ai_notes_api.db.models.user import User
 
 
 class DocumentStatus(StrEnum):
@@ -42,6 +43,8 @@ class Document(Base, TimestampMixin, SoftDeleteMixin):
 
     Attributes:
         id (Mapped[UUID]): Unique document identifier.
+        user_id (Mapped[UUID]): Identifier of the user who owns the document.
+        user (Mapped[User]): User who owns the document.
         session_id (Mapped[UUID]): Identifier of the chat session that owns the
             document.
         chat_session (Mapped[ChatSession]): Chat session that owns the document.
@@ -49,8 +52,7 @@ class Document(Base, TimestampMixin, SoftDeleteMixin):
         content_type (Mapped[str]): MIME type of the document.
         file_size (Mapped[int]): Document size in bytes.
         checksum_sha256 (Mapped[str]): SHA-256 checksum of the document content.
-        storage_bucket (Mapped[str]): Storage bucket where the document is
-            stored.
+        storage_bucket (Mapped[str]): Storage bucket where the document is stored.
         storage_object_name (Mapped[str]): Object name of the document within
             the storage bucket.
         status (Mapped[DocumentStatus]): Current document processing status.
@@ -66,9 +68,22 @@ class Document(Base, TimestampMixin, SoftDeleteMixin):
         default=uuid4,
     )
 
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            "users.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    user: Mapped["User"] = relationship(
+        back_populates="documents",
+    )
+
     session_id: Mapped[UUID] = mapped_column(
         ForeignKey(
-            "documents.id",
+            "chat_sessions.id",
             ondelete="CASCADE",
         ),
         nullable=False,

@@ -123,6 +123,6 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     documents: Mapped[list["Document"]] = relationship(
-        back_populates="documents",
+        back_populates="chat_session",
         cascade="all, delete-orphan",
     )
