@@ -7,6 +7,7 @@ from .base import Base
 from .chat_memory import ChatMemory
 from .chat_session import ChatSession, ChatSessionGenerationStatus
 from .datetime import SoftDeleteMixin, TimestampMixin
+from .document import Document, DocumentStatus
 from .generation_job import GenerationJob, GenerationJobStatus
 from .message import Message, MessageRole
 from .note import ModelSource, Note
@@ -26,4 +27,6 @@ __all__ = [
     "GenerationJobStatus",
     "ChatSessionGenerationStatus",
     "ChatMemory",
+    "Document",
+    "DocumentStatus",
 ]
