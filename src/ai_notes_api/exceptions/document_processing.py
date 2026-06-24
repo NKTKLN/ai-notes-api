@@ -48,3 +48,19 @@ class OverlapGreaterThanOrEqualChunkSizeError(AppException):
     def __init__(self) -> None:
         """Initialize overlap and chunk_size validation exception."""
         super().__init__("overlap должен быть меньше chunk_size")
+
+
+class UnsupportedDocumentFormatError(AppException):
+    """Exception raised when document format is not supported."""
+
+    status_code: int = 415
+    code: str = "UNSUPPORTED_DOCUMENT_FORMAT"
+
+    def __init__(self, content_type: str | None = None) -> None:
+        """Initialize unsupported document format exception."""
+        message = "Unsupported document format"
+
+        if content_type:
+            message = f"Unsupported document format: {content_type}"
+
+        super().__init__(message)

@@ -17,6 +17,7 @@ from ai_notes_api.exceptions.document_processing import (
     InvalidChunkSizeError,
     InvalidOverlapError,
     OverlapGreaterThanOrEqualChunkSizeError,
+    UnsupportedDocumentFormatError,
 )
 from ai_notes_api.exceptions.generation_job import (
     GenerationInProgressError,
@@ -53,4 +54,5 @@ __all__ = [
     "InvalidChunkSizeError",
     "InvalidOverlapError",
     "OverlapGreaterThanOrEqualChunkSizeError",
+    "UnsupportedDocumentFormatError",
 ]
