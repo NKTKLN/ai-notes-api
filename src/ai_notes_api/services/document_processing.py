@@ -6,6 +6,7 @@ splitting its text, generating embeddings, persisting the resulting chunks, and
 updating the document status accordingly.
 """
 
+import asyncio
 import hashlib
 from io import BytesIO
 from uuid import UUID
@@ -66,7 +67,6 @@ class DocumentProcessingService:
         self.chunks = chunk_repository
         self.storage = storage
         self.embeddings = embeddings
-        self.md = MarkItDown()
 
     async def process_document(self, document_id: UUID) -> Document:
         """Process a document into embedded chunks.
@@ -94,7 +94,7 @@ class DocumentProcessingService:
             data = await self.storage.download_file(document.storage_object_name)
 
             text = await self._extract_text(data, document.content_type)
-            text_chunks = self._chunk_text(text)
+            text_chunks = await self._chunk_text(text)
 
             embeddings = await self.embeddings.create_embedding(text_chunks)
 
@@ -130,10 +130,9 @@ class DocumentProcessingService:
 
             raise
 
-        else:
-            logger.info("Document processing finished: id={}", document_id)
+        logger.info("Document processing finished: id={}", document_id)
 
-            return document
+        return document
 
     async def _extract_text(self, data: bytes, content_type: str) -> str:
         """Extract markdown text from raw document bytes.
@@ -155,25 +154,35 @@ class DocumentProcessingService:
             len(data),
         )
 
-        try:
-            result = self.md.convert_stream(
-                BytesIO(data),
-                stream_info=StreamInfo(mimetype=content_type),
-            )
+        def _convert() -> str:
+            md = MarkItDown()
 
-        except UnsupportedFormatException as exc:
-            logger.warning("Unsupported document format: content_type={}", content_type)
-            raise UnsupportedDocumentFormatError(content_type) from exc
+            try:
+                result = md.convert_stream(
+                    BytesIO(data),
+                    stream_info=StreamInfo(mimetype=content_type),
+                )
+
+            except UnsupportedFormatException as exc:
+                logger.warning(
+                    "Unsupported document format: content_type={}", content_type
+                )
+                raise UnsupportedDocumentFormatError(content_type) from exc
+
+            return result.markdown
+
+        loop = asyncio.get_running_loop()
+        markdown = await loop.run_in_executor(None, _convert)
 
         logger.debug(
             "Text extraction finished: content_type={}, chars={}",
             content_type,
-            len(result.markdown),
+            len(markdown),
         )
 
-        return result.markdown
+        return markdown
 
-    def _chunk_text(
+    async def _chunk_text(
         self,
         text: str,
         chunk_size: int = 1000,
@@ -211,30 +220,32 @@ class DocumentProcessingService:
             overlap,
         )
 
-        encoding = tiktoken.get_encoding(settings.tiktoken_encoding_name)
+        def _chunk() -> list[str]:
+            encoding = tiktoken.get_encoding(settings.tiktoken_encoding_name)
 
-        tokens = encoding.encode(text)
-        chunks = []
+            tokens = encoding.encode(text)
+            chunks = []
 
-        step = chunk_size - overlap
+            step = chunk_size - overlap
 
-        for start in range(0, len(tokens), step):
-            end = start + chunk_size
-            chunk_tokens = tokens[start:end]
+            for start in range(0, len(tokens), step):
+                end = start + chunk_size
+                chunk_tokens = tokens[start:end]
 
-            chunk = encoding.decode(chunk_tokens).strip()
+                chunk = encoding.decode(chunk_tokens).strip()
 
-            if chunk:
-                chunks.append(chunk)
+                if chunk:
+                    chunks.append(chunk)
 
-            if end >= len(tokens):
-                break
+                if end >= len(tokens):
+                    break
 
-        logger.debug(
-            "Chunking finished: tokens={}, chunks={}",
-            len(tokens),
-            len(chunks),
-        )
+            return chunks
+
+        loop = asyncio.get_running_loop()
+        chunks = await loop.run_in_executor(None, _chunk)
+
+        logger.debug("Chunking finished: chunks={}", len(chunks))
 
         return chunks
 
