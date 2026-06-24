@@ -98,28 +98,7 @@ class DocumentProcessingService:
 
             embeddings = await self.embeddings.create_embedding(text_chunks)
 
-            chunks = []
-
-            for chunk_index in range(len(text_chunks)):
-                text_chunk = text_chunks[chunk_index]
-                embedding = embeddings[chunk_index]
-
-                chunk_hash = hashlib.sha256(text_chunk.encode())
-
-                chunks.append(
-                    DocumentChunk(
-                        user_id=document.user_id,
-                        session_id=document.session_id,
-                        document_id=document.id,
-                        chunk_index=chunk_index,
-                        content=text_chunk,
-                        content_hash=(chunk_hash).hexdigest(),
-                        embedding=embedding,
-                        embedding_model=settings.open_ai_embedding_model,
-                    )
-                )
-
-            await self.chunks.create_many(chunks)
+            await self._persist_chunks(document, text_chunks, embeddings)
 
             document = await self._mark_ready(document)
 
@@ -133,6 +112,43 @@ class DocumentProcessingService:
         logger.info("Document processing finished: id={}", document_id)
 
         return document
+
+    async def _persist_chunks(
+        self,
+        document: Document,
+        text_chunks: list[str],
+        embeddings: list[list[float]],
+    ) -> None:
+        """Build and persist document chunks from text and embeddings.
+
+        Args:
+            document (Document): Source document the chunks belong to.
+            text_chunks (list[str]): Ordered text chunks to persist.
+            embeddings (list[list[float]]): Embedding vectors aligned with
+                ``text_chunks`` by index.
+        """
+        chunks = []
+
+        for chunk_index in range(len(text_chunks)):
+            text_chunk = text_chunks[chunk_index]
+            embedding = embeddings[chunk_index]
+
+            chunk_hash = hashlib.sha256(text_chunk.encode())
+
+            chunks.append(
+                DocumentChunk(
+                    user_id=document.user_id,
+                    session_id=document.session_id,
+                    document_id=document.id,
+                    chunk_index=chunk_index,
+                    content=text_chunk,
+                    content_hash=(chunk_hash).hexdigest(),
+                    embedding=embedding,
+                    embedding_model=settings.open_ai_embedding_model,
+                )
+            )
+
+        await self.chunks.create_many(chunks)
 
     async def _extract_text(self, data: bytes, content_type: str) -> str:
         """Extract markdown text from raw document bytes.
