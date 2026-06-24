@@ -26,6 +26,7 @@ dependencies = [
     "pgvector>=0.4.2",
     "aioboto3>=15.5.0",
     "tiktoken>=0.13.0",
+    "markitdown>=0.1.6",
 ]
 
 [dependency-groups]
