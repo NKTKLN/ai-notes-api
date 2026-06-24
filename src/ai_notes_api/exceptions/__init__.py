@@ -12,8 +12,11 @@ from ai_notes_api.exceptions.chat_memory import (
 )
 from ai_notes_api.exceptions.chat_session import ChatSessionNotFoundError
 from ai_notes_api.exceptions.document import DocumentNotFoundError
-from ai_notes_api.exceptions.document_processing_job import (
+from ai_notes_api.exceptions.document_processing import (
     DocumentProcessingJobNotFoundError,
+    InvalidChunkSizeError,
+    InvalidOverlapError,
+    OverlapGreaterThanOrEqualChunkSizeError,
 )
 from ai_notes_api.exceptions.generation_job import (
     GenerationInProgressError,
@@ -47,4 +50,7 @@ __all__ = [
     "ChatMemoryDependenciesNotConfiguredError",
     "DocumentNotFoundError",
     "DocumentProcessingJobNotFoundError",
+    "InvalidChunkSizeError",
+    "InvalidOverlapError",
+    "OverlapGreaterThanOrEqualChunkSizeError",
 ]

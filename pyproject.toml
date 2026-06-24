@@ -25,6 +25,7 @@ dependencies = [
     "redis>=8.0.0",
     "pgvector>=0.4.2",
     "aioboto3>=15.5.0",
+    "tiktoken>=0.13.0",
 ]
 
 [dependency-groups]

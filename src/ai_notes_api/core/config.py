@@ -29,6 +29,8 @@ class Settings(BaseSettings):
         open_ai_embedding_model (str): OpenAI embedding model name.
         open_ai_api_url (str | None): Optional custom OpenAI-compatible API URL.
         open_ai_max_output_tokens (int): Maximum number of output tokens.
+        tiktoken_encoding_name (str): Name of the tiktoken encoding used to
+            tokenize text when splitting documents into chunks.
         llm_context_messages_limit (int): Maximum number of context messages
             sent to the LLM.
         celery_broker_url (str): Celery broker URL.
@@ -64,6 +66,8 @@ class Settings(BaseSettings):
     open_ai_embedding_model: str = Field(default="text-embedding-3-small")
     open_ai_api_url: str | None = Field(default=None)
     open_ai_max_output_tokens: int = Field(default=700)
+
+    tiktoken_encoding_name: str = Field(default="cl100k_base")
 
     llm_context_messages_limit: int = Field(default=20)
 

@@ -7,30 +7,22 @@ updating the document status accordingly.
 """
 
 import hashlib
-from dataclasses import dataclass
 from uuid import UUID
 
+import tiktoken
 from loguru import logger
 
 from ai_notes_api.core import settings
 from ai_notes_api.db.models import Document, DocumentChunk, DocumentStatus
-from ai_notes_api.exceptions import DocumentNotFoundError
+from ai_notes_api.exceptions import (
+    DocumentNotFoundError,
+    InvalidChunkSizeError,
+    InvalidOverlapError,
+    OverlapGreaterThanOrEqualChunkSizeError,
+)
 from ai_notes_api.llm import EmbeddingClient
 from ai_notes_api.repositories import DocumentChunkRepository, DocumentRepository
 from ai_notes_api.storage import DocumentStorage
-
-
-@dataclass(slots=True)
-class TextChunk:
-    """Plain-text chunk produced while splitting a document.
-
-    Attributes:
-        index (int): Position of the chunk within the document.
-        content (str): Text content of the chunk.
-    """
-
-    index: int
-    content: str
 
 
 class DocumentProcessingService:
@@ -75,11 +67,6 @@ class DocumentProcessingService:
     async def process_document(self, document_id: UUID) -> Document:
         """Process a document into embedded chunks.
 
-        Downloads the source file from object storage, extracts and splits its
-        text, generates embeddings, persists the resulting chunks, and marks the
-        document as ``READY``. If any step fails, the document is marked
-        ``FAILED`` and the original error is re-raised.
-
         Args:
             document_id (UUID): Unique identifier of the document to process.
 
@@ -105,35 +92,40 @@ class DocumentProcessingService:
             text = await self._extract_text(data, document.content_type)
             text_chunks = self._chunk_text(text)
 
-            embeddings = await self.embeddings.create_embedding(
-                [chunk.content for chunk in text_chunks]
-            )
+            embeddings = await self.embeddings.create_embedding(text_chunks)
 
-            chunks = [
-                DocumentChunk(
-                    user_id=document.user_id,
-                    session_id=document.session_id,
-                    document_id=document.id,
-                    chunk_index=text_chunk.index,
-                    content=text_chunk.content,
-                    content_hash=hashlib.sha256(
-                        text_chunk.content.encode()
-                    ).hexdigest(),
-                    embedding=embedding,
-                    embedding_model=settings.open_ai_embedding_model,
+            chunks = []
+
+            for chunk_index in range(len(text_chunks)):
+                text_chunk = text_chunks[chunk_index]
+                embedding = embeddings[chunk_index]
+
+                chunk_hash = hashlib.sha256(text_chunk.encode())
+
+                chunks.append(
+                    DocumentChunk(
+                        user_id=document.user_id,
+                        session_id=document.session_id,
+                        document_id=document.id,
+                        chunk_index=chunk_index,
+                        content=text_chunk,
+                        content_hash=(chunk_hash).hexdigest(),
+                        embedding=embedding,
+                        embedding_model=settings.open_ai_embedding_model,
+                    )
                 )
-                for text_chunk, embedding in zip(text_chunks, embeddings, strict=True)
-            ]
 
             await self.chunks.create_many(chunks)
 
             document = await self._mark_ready(document)
+
         except Exception as exc:
             logger.exception("Document processing failed: id={}", document_id)
 
             await self._mark_failed(document, str(exc))
 
             raise
+
         else:
             logger.info("Document processing finished: id={}", document_id)
 
@@ -152,16 +144,57 @@ class DocumentProcessingService:
         """
         raise NotImplementedError
 
-    def _chunk_text(self, text: str) -> list[TextChunk]:
-        """Split extracted text into overlapping chunks.
+    def _chunk_text(
+        self,
+        text: str,
+        chunk_size: int = 1000,
+        overlap: int = 200,
+    ) -> list[str]:
+        """Split extracted text into token-based overlapping chunks.
 
         Args:
             text (str): Plain text to split.
+            chunk_size (int): Maximum number of tokens in each chunk.
+            overlap (int): Number of tokens repeated between adjacent chunks.
 
         Returns:
-            list[TextChunk]: Ordered text chunks ready for embedding.
+            list[str]: Ordered non-empty text chunks ready for embedding.
+
+        Raises:
+            InvalidChunkSizeError: If `chunk_size` is less than or equal to zero.
+            InvalidOverlapError: If `overlap` is negative.
+            OverlapGreaterThanOrEqualChunkSizeError: If `overlap` is greater than
+                or equal to `chunk_size`.
         """
-        raise NotImplementedError
+        if chunk_size <= 0:
+            raise InvalidChunkSizeError()
+
+        if overlap < 0:
+            raise InvalidOverlapError()
+
+        if overlap >= chunk_size:
+            raise OverlapGreaterThanOrEqualChunkSizeError()
+
+        encoding = tiktoken.get_encoding(settings.tiktoken_encoding_name)
+
+        tokens = encoding.encode(text)
+        chunks = []
+
+        step = chunk_size - overlap
+
+        for start in range(0, len(tokens), step):
+            end = start + chunk_size
+            chunk_tokens = tokens[start:end]
+
+            chunk = encoding.decode(chunk_tokens).strip()
+
+            if chunk:
+                chunks.append(chunk)
+
+            if end >= len(tokens):
+                break
+
+        return chunks
 
     async def _mark_ready(self, document: Document) -> Document:
         """Mark a document as successfully processed.
