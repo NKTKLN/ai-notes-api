@@ -4,7 +4,7 @@ This module defines FastAPI dependencies for constructing application services,
 resolving authenticated users, and accessing shared application clients.
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import Depends
@@ -20,6 +20,8 @@ from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
     ChatMemoryRepository,
     ChatSessionRepository,
+    DocumentProcessingJobRepository,
+    DocumentRepository,
     GenerationJobRepository,
     MessageRepository,
     NoteRepository,
@@ -29,11 +31,13 @@ from ai_notes_api.services import (
     AuthService,
     ChatMemoryService,
     ChatSessionService,
+    DocumentService,
     JobService,
     LLMService,
     MessageService,
     NoteService,
 )
+from ai_notes_api.storage import DocumentStorage, get_s3_client
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/v1/auth/login",
@@ -241,3 +245,37 @@ def get_memory_service(
     repository = ChatMemoryRepository(session)
 
     return ChatMemoryService(repository)
+
+
+def get_document_service(
+    db_session: Annotated[AsyncSession, Depends(get_db)],
+    s3_client: Annotated[Any, Depends(get_s3_client)],
+) -> DocumentService:
+    """Provide a document service instance.
+
+    Args:
+        db_session (AsyncSession): Asynchronous database session provided by
+            FastAPI dependency injection.
+        s3_client (Any): S3 client provided by FastAPI dependency injection.
+
+    Returns:
+        DocumentService: Configured document service instance.
+    """
+    documents = DocumentRepository(db_session)
+    processing = DocumentProcessingJobRepository(db_session)
+    sessions = ChatSessionRepository(db_session)
+    memories = ChatMemoryRepository(db_session)
+
+    sessions_service = ChatSessionService(
+        session_repository=sessions,
+        memory_repository=memories,
+    )
+
+    storage = DocumentStorage(s3_client)
+
+    return DocumentService(
+        document_repository=documents,
+        processing_repository=processing,
+        session_service=sessions_service,
+        storage=storage,
+    )
