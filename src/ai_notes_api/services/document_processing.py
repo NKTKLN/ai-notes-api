@@ -7,10 +7,12 @@ updating the document status accordingly.
 """
 
 import hashlib
+from io import BytesIO
 from uuid import UUID
 
 import tiktoken
 from loguru import logger
+from markitdown import MarkItDown, StreamInfo, UnsupportedFormatException
 
 from ai_notes_api.core import settings
 from ai_notes_api.db.models import Document, DocumentChunk, DocumentStatus
@@ -19,6 +21,7 @@ from ai_notes_api.exceptions import (
     InvalidChunkSizeError,
     InvalidOverlapError,
     OverlapGreaterThanOrEqualChunkSizeError,
+    UnsupportedDocumentFormatError,
 )
 from ai_notes_api.llm import EmbeddingClient
 from ai_notes_api.repositories import DocumentChunkRepository, DocumentRepository
@@ -63,6 +66,7 @@ class DocumentProcessingService:
         self.chunks = chunk_repository
         self.storage = storage
         self.embeddings = embeddings
+        self.md = MarkItDown()
 
     async def process_document(self, document_id: UUID) -> Document:
         """Process a document into embedded chunks.
@@ -132,17 +136,42 @@ class DocumentProcessingService:
             return document
 
     async def _extract_text(self, data: bytes, content_type: str) -> str:
-        """Extract plain text from raw document content.
+        """Extract markdown text from raw document bytes.
 
         Args:
-            data (bytes): Raw document content.
-            content_type (str): MIME type of the document used to select the
-                appropriate extraction strategy.
+            data (bytes): Raw document content to convert.
+            content_type (str): MIME type of the document.
 
         Returns:
-            str: Extracted plain text.
+            str: Extracted document text as markdown.
+
+        Raises:
+            UnsupportedDocumentFormatError: If MarkItDown does not support the
+                given content type.
         """
-        raise NotImplementedError
+        logger.debug(
+            "Extracting text: content_type={}, size={} bytes",
+            content_type,
+            len(data),
+        )
+
+        try:
+            result = self.md.convert_stream(
+                BytesIO(data),
+                stream_info=StreamInfo(mimetype=content_type),
+            )
+
+        except UnsupportedFormatException as exc:
+            logger.warning("Unsupported document format: content_type={}", content_type)
+            raise UnsupportedDocumentFormatError(content_type) from exc
+
+        logger.debug(
+            "Text extraction finished: content_type={}, chars={}",
+            content_type,
+            len(result.markdown),
+        )
+
+        return result.markdown
 
     def _chunk_text(
         self,
@@ -175,6 +204,13 @@ class DocumentProcessingService:
         if overlap >= chunk_size:
             raise OverlapGreaterThanOrEqualChunkSizeError()
 
+        logger.debug(
+            "Chunking text: chars={}, chunk_size={}, overlap={}",
+            len(text),
+            chunk_size,
+            overlap,
+        )
+
         encoding = tiktoken.get_encoding(settings.tiktoken_encoding_name)
 
         tokens = encoding.encode(text)
@@ -193,6 +229,12 @@ class DocumentProcessingService:
 
             if end >= len(tokens):
                 break
+
+        logger.debug(
+            "Chunking finished: tokens={}, chunks={}",
+            len(tokens),
+            len(chunks),
+        )
 
         return chunks
 
