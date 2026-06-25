@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: shrimp
-      POSTGRES_PASSWORD: shrimp
+      POSTGRES_PASSWORD: passwordshrimp
       POSTGRES_DB: ai_notes
     ports:
       - "5432:5432"
@@ -38,7 +38,7 @@ services:
       - "9001:9001"
     environment:
       MINIO_ROOT_USER: shrimp
-      MINIO_ROOT_PASSWORD: shrimp
+      MINIO_ROOT_PASSWORD: passwordshrimp
     volumes:
       - ai_notes_minio_data:/data
     healthcheck:
