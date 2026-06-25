@@ -216,7 +216,9 @@ class GenerationJobService:
         generation_job = await self.get_by_id(generation_id)
 
         generation_job.status = GenerationJobStatus.FAILED
-        generation_job.error = error_message[: self.ERROR_MAX_LENGTH]
+        generation_job.error = (
+            error_message[: self.ERROR_MAX_LENGTH] if error_message else None
+        )
         generation_job.finished_at = datetime.now(UTC)
 
         return await self.generations.update(generation_job)

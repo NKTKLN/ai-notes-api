@@ -108,7 +108,9 @@ class DocumentProcessingJobService:
         processing_job = await self.get_by_id(job_id)
 
         processing_job.status = DocumentProcessingJobStatus.FAILED
-        processing_job.error = error_message[: self.ERROR_MAX_LENGTH]
+        processing_job.error = (
+            error_message[: self.ERROR_MAX_LENGTH] if error_message else None
+        )
         processing_job.finished_at = datetime.now(UTC)
 
         return await self.processing_jobs.update(processing_job)
