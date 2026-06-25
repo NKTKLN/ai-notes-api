@@ -16,7 +16,7 @@ from sse_starlette import EventSourceResponse
 
 from ai_notes_api.api.v1.dependencies import get_current_user, get_llm_service
 from ai_notes_api.db.models import User
-from ai_notes_api.llm.models import LLMStreamEvent
+from ai_notes_api.llm.schemas import LLMStreamEvent
 from ai_notes_api.schemas import ErrorResponseSchema, UserMessageCreateSchema
 from ai_notes_api.services import LLMService
 

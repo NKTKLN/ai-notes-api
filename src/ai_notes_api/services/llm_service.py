@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 from ai_notes_api.core import settings
 from ai_notes_api.db.models import Message
 from ai_notes_api.llm import LLMClient
-from ai_notes_api.llm.models import LLMMessage, LLMResponse, LLMStreamEvent
+from ai_notes_api.llm.schemas import LLMMessage, LLMResponse, LLMStreamEvent
 from ai_notes_api.memory import PromptBuilder
 from ai_notes_api.schemas import (
     AssistantMessageCreateSchema,

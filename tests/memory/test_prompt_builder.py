@@ -3,7 +3,7 @@
 import json
 
 from ai_notes_api.db.models import MessageRole
-from ai_notes_api.llm.models import LLMMessage
+from ai_notes_api.llm.schemas import LLMMessage
 from ai_notes_api.memory.prompt_builder import PromptBuilder
 
 

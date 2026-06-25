@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from ai_notes_api.api.v1.completions import llm_event_to_sse, router
 from ai_notes_api.api.v1.dependencies import get_current_user, get_llm_service
 from ai_notes_api.db.models import User
-from ai_notes_api.llm.models import LLMResponse, LLMStreamEvent
+from ai_notes_api.llm.schemas import LLMResponse, LLMStreamEvent
 
 TEST_USER_ID = UUID("11111111-1111-1111-1111-111111111111")
 TEST_SESSION_ID = UUID("22222222-2222-2222-2222-222222222222")

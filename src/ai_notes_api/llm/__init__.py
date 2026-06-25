@@ -6,7 +6,12 @@ tools.
 
 from ai_notes_api.llm.client import LLMClient
 from ai_notes_api.llm.embeddings import EmbeddingClient
-from ai_notes_api.llm.models import LLMMessage, LLMResponse, LLMStreamEvent, LLMToolCall
+from ai_notes_api.llm.schemas import (
+    LLMMessage,
+    LLMResponse,
+    LLMStreamEvent,
+    LLMToolCall,
+)
 
 __all__ = [
     "LLMClient",
