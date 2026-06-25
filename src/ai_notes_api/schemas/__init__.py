@@ -14,14 +14,10 @@ from ai_notes_api.schemas.chat_session import (
 from ai_notes_api.schemas.chunk import DocumentChunkRead
 from ai_notes_api.schemas.completion import ChatCompletionResponseSchema
 from ai_notes_api.schemas.document import (
-    DocumentDeleteResponse,
     DocumentDownloadUrlResponse,
     DocumentListResponse,
-    DocumentProcessResponse,
-    DocumentRead,
-    DocumentUploadResponse,
+    DocumentResponseSchema,
 )
-from ai_notes_api.schemas.document_processing_job import DocumentProcessingJobRead
 from ai_notes_api.schemas.error import ErrorResponseSchema
 from ai_notes_api.schemas.generation_job import (
     GenerationJobCreateSchema,
@@ -79,14 +75,10 @@ __all__ = [
     "GenerationJobResponseSchema",
     "GenerationJobUpdateSchema",
     "ChatMemoryResponseSchema",
-    "DocumentRead",
+    "DocumentResponseSchema",
     "DocumentListResponse",
-    "DocumentUploadResponse",
-    "DocumentProcessResponse",
-    "DocumentDeleteResponse",
     "DocumentDownloadUrlResponse",
     "DocumentChunkRead",
-    "DocumentProcessingJobRead",
     "RagQueryRequest",
     "RagSourceRead",
     "RagQueryResponse",

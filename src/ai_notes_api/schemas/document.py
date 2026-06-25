@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from ai_notes_api.db.models import DocumentStatus
 
 
-class DocumentRead(BaseModel):
+class DocumentResponseSchema(BaseModel):
     """Schema for returning document data.
 
     Attributes:
@@ -51,63 +51,11 @@ class DocumentListResponse(BaseModel):
 
     Attributes:
         items (list[DocumentRead]): List of documents.
-        limit (int): Maximum number of documents returned.
-        offset (int): Number of documents skipped before returning results.
         total (int): Total number of documents in the current page.
     """
 
-    items: list[DocumentRead]
-    limit: int
-    offset: int
+    items: list[DocumentResponseSchema]
     total: int
-
-
-class DocumentUploadResponse(BaseModel):
-    """Schema for returning the result of a document upload.
-
-    Attributes:
-        id (UUID): Unique document identifier.
-        chat_session_id (UUID): Unique chat session identifier.
-        filename (str): Original document file name.
-        status (DocumentStatus): Current document processing status.
-        created_at (datetime): Date and time when the document was created.
-    """
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
-
-    id: UUID
-    chat_session_id: UUID = Field(validation_alias="session_id")
-    filename: str
-    status: DocumentStatus
-    created_at: datetime
-
-
-class DocumentProcessResponse(BaseModel):
-    """Schema for returning the result of a document processing request.
-
-    Attributes:
-        document_id (UUID): Unique document identifier.
-        status (DocumentStatus): Current document processing status.
-        message (str): Human-readable description of the processing result.
-    """
-
-    document_id: UUID
-    status: DocumentStatus
-    message: str
-
-
-class DocumentDeleteResponse(BaseModel):
-    """Schema for returning the result of a document deletion.
-
-    Attributes:
-        document_id (UUID): Unique document identifier.
-        status (DocumentStatus): Current document status.
-        message (str): Human-readable description of the deletion result.
-    """
-
-    document_id: UUID
-    status: DocumentStatus
-    message: str
 
 
 class DocumentDownloadUrlResponse(BaseModel):
