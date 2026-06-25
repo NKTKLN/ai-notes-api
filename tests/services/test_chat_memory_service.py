@@ -12,7 +12,7 @@ from ai_notes_api.exceptions import (
     ChatMemoryDependenciesNotConfiguredError,
     ChatMemoryNotFoundError,
 )
-from ai_notes_api.llm.models import LLMMessage
+from ai_notes_api.llm.schemas import LLMMessage
 from ai_notes_api.memory import MemoryExtractor, MemorySummarizer
 from ai_notes_api.repositories import ChatMemoryRepository, MessageRepository
 from ai_notes_api.services import ChatMemoryService

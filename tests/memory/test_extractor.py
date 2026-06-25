@@ -9,7 +9,7 @@ import pytest
 
 from ai_notes_api.core import settings
 from ai_notes_api.db.models import MessageRole
-from ai_notes_api.llm.models import LLMMessage
+from ai_notes_api.llm.schemas import LLMMessage
 from ai_notes_api.memory.extractor import MemoryExtractor
 from ai_notes_api.memory.prompts import FACT_EXTRACTION_PROMPT
 

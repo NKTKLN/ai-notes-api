@@ -8,7 +8,7 @@ import json
 from dataclasses import asdict
 from typing import Any
 
-from ai_notes_api.llm.models import LLMMessage
+from ai_notes_api.llm.schemas import LLMMessage
 
 
 class PromptBuilder:

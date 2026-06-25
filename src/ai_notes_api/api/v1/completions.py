@@ -16,7 +16,7 @@ from sse_starlette import EventSourceResponse
 
 from ai_notes_api.api.v1.dependencies import get_current_user, get_llm_service
 from ai_notes_api.db.models import User
-from ai_notes_api.llm.models import LLMStreamEvent
+from ai_notes_api.llm.schemas import LLMStreamEvent
 from ai_notes_api.schemas import ErrorResponseSchema, UserMessageCreateSchema
 from ai_notes_api.services import LLMService
 
@@ -49,6 +49,10 @@ def llm_event_to_sse(event: LLMStreamEvent) -> dict[str, str]:
     description="Generate and stream an assistant response for a chat session.",
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Chat session not found",

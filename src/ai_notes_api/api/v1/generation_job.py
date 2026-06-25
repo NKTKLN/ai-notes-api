@@ -17,7 +17,7 @@ from ai_notes_api.schemas import (
     GenerationJobCreateSchema,
     GenerationJobResponseSchema,
 )
-from ai_notes_api.services import JobService
+from ai_notes_api.services import GenerationJobService
 from ai_notes_api.workers.tasks.generation import run_generation_job
 
 router = APIRouter(
@@ -33,6 +33,14 @@ router = APIRouter(
     response_model=GenerationJobResponseSchema,
     status_code=status.HTTP_201_CREATED,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
+        404: {
+            "model": ErrorResponseSchema,
+            "description": "Chat session not found",
+        },
         409: {
             "model": ErrorResponseSchema,
             "description": "Generation already in progress",
@@ -42,13 +50,12 @@ router = APIRouter(
 async def create_completion_job(
     data: GenerationJobCreateSchema,
     user: Annotated[User, Depends(get_current_user)],
-    service: Annotated[JobService, Depends(get_job_service)],
+    service: Annotated[GenerationJobService, Depends(get_job_service)],
 ) -> GenerationJobResponseSchema:
     """Create a generation job.
 
     Args:
-        data (GenerationJobCreateSchema): Validated generation job creation
-            data.
+        data (GenerationJobCreateSchema): Validated generation job creation data.
         user (User): Current authenticated user.
         service (JobService): Generation job service dependency used to create
             the generation job.
@@ -62,11 +69,11 @@ async def create_completion_job(
     """
     logger.info("Generation job creation requested")
 
-    job = await service.create_job(user.id, data)
+    generation = await service.create_job(user.id, data)
 
-    run_generation_job.delay(str(job.id))
+    run_generation_job.delay(str(generation.id))
 
-    return GenerationJobResponseSchema.model_validate(job)
+    return GenerationJobResponseSchema.model_validate(generation)
 
 
 @router.get(
@@ -76,6 +83,10 @@ async def create_completion_job(
     response_model=GenerationJobResponseSchema,
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Generation job not found",
@@ -85,7 +96,7 @@ async def create_completion_job(
 async def get_completion_job(
     job_id: UUID,
     user: Annotated[User, Depends(get_current_user)],
-    service: Annotated[JobService, Depends(get_job_service)],
+    service: Annotated[GenerationJobService, Depends(get_job_service)],
 ) -> GenerationJobResponseSchema:
     """Return a generation job by its identifier.
 
@@ -99,11 +110,10 @@ async def get_completion_job(
         GenerationJobResponseSchema: Generation job data.
 
     Raises:
-        GenerationNotFoundError: If no generation job with the given identifier
-            exists.
+        GenerationNotFoundError: If no generation job with the given identifier exists.
     """
     logger.info("Generation job retrieval requested: job_id={}", job_id)
 
-    job = await service.get_by_id(user.id, job_id)
+    generation = await service.get_by_id_for_user(user.id, job_id)
 
-    return GenerationJobResponseSchema.model_validate(job)
+    return GenerationJobResponseSchema.model_validate(generation)

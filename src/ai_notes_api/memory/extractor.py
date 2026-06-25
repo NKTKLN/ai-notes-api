@@ -15,7 +15,7 @@ from openai.types.responses import (
 )
 
 from ai_notes_api.core import settings
-from ai_notes_api.llm.models import LLMMessage
+from ai_notes_api.llm.schemas import LLMMessage
 from ai_notes_api.memory.prompts import FACT_EXTRACTION_PROMPT
 
 

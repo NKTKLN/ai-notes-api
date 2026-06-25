@@ -3,17 +3,23 @@
 This package re-exports schema classes used by the API.
 """
 
-from .chat_memory import ChatMemoryResponseSchema
-from .chat_session import (
+from ai_notes_api.schemas.chat_memory import ChatMemoryResponseSchema
+from ai_notes_api.schemas.chat_session import (
     ChatSessionCreateSchema,
     ChatSessionListQuerySchema,
     ChatSessionListResponseSchema,
     ChatSessionResponseSchema,
     ChatSessionUpdateSchema,
 )
-from .completion import ChatCompletionResponseSchema
-from .error import ErrorResponseSchema
-from .generation_job import (
+from ai_notes_api.schemas.chunk import DocumentChunkRead
+from ai_notes_api.schemas.completion import ChatCompletionResponseSchema
+from ai_notes_api.schemas.document import (
+    DocumentDownloadUrlResponse,
+    DocumentListResponse,
+    DocumentResponseSchema,
+)
+from ai_notes_api.schemas.error import ErrorResponseSchema
+from ai_notes_api.schemas.generation_job import (
     GenerationJobCreateSchema,
     GenerationJobListQuerySchema,
     GenerationJobListResponseSchema,
@@ -21,23 +27,24 @@ from .generation_job import (
     GenerationJobStatus,
     GenerationJobUpdateSchema,
 )
-from .message import (
+from ai_notes_api.schemas.message import (
     AssistantMessageCreateSchema,
     MessageListQuerySchema,
     MessageListResponseSchema,
     MessageResponseSchema,
     UserMessageCreateSchema,
 )
-from .note import (
+from ai_notes_api.schemas.note import (
     NoteCreateSchema,
     NoteListQuerySchema,
     NoteListResponseSchema,
     NoteResponseSchema,
     NoteUpdateSchema,
 )
-from .status import StatusResponseSchema
-from .token import TokenResponseSchema
-from .user import UserCreateSchema, UserResponseSchema
+from ai_notes_api.schemas.rag import RagQueryRequest, RagQueryResponse, RagSourceRead
+from ai_notes_api.schemas.status import StatusResponseSchema
+from ai_notes_api.schemas.token import TokenResponseSchema
+from ai_notes_api.schemas.user import UserCreateSchema, UserResponseSchema
 
 __all__ = [
     "AssistantMessageCreateSchema",
@@ -68,4 +75,11 @@ __all__ = [
     "GenerationJobResponseSchema",
     "GenerationJobUpdateSchema",
     "ChatMemoryResponseSchema",
+    "DocumentResponseSchema",
+    "DocumentListResponse",
+    "DocumentDownloadUrlResponse",
+    "DocumentChunkRead",
+    "RagQueryRequest",
+    "RagSourceRead",
+    "RagQueryResponse",
 ]

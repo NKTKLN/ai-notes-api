@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from ai_notes_api.api.v1.dependencies import get_current_user, get_job_service
-from ai_notes_api.api.v1.generation_jobs import router
+from ai_notes_api.api.v1.generation_job import router
 from ai_notes_api.db.models import GenerationJobStatus, User
 from ai_notes_api.exceptions import (
     ChatSessionNotFoundError,
@@ -93,7 +93,7 @@ def run_generation_job_mock() -> Generator[MagicMock]:
     Yields:
         MagicMock: Mocked ``run_generation_job`` Celery task.
     """
-    with patch("ai_notes_api.api.v1.generation_jobs.run_generation_job") as task_mock:
+    with patch("ai_notes_api.api.v1.generation_job.run_generation_job") as task_mock:
         yield task_mock
 
 
@@ -256,7 +256,7 @@ def test_get_completion_job_success(
     job_service_mock: AsyncMock,
 ) -> None:
     """Test successful generation job retrieval by identifier."""
-    job_service_mock.get_by_id.return_value = create_generation_job_response(
+    job_service_mock.get_by_id_for_user.return_value = create_generation_job_response(
         status=GenerationJobStatus.COMPLETED,
         input_message="Hello",
     )
@@ -271,7 +271,9 @@ def test_get_completion_job_success(
     assert data["status"] == GenerationJobStatus.COMPLETED.value
     assert data["input_message"] == "Hello"
 
-    job_service_mock.get_by_id.assert_awaited_once_with(TEST_USER_ID, TEST_JOB_ID)
+    job_service_mock.get_by_id_for_user.assert_awaited_once_with(
+        TEST_USER_ID, TEST_JOB_ID
+    )
 
 
 def test_get_completion_job_not_found(
@@ -279,7 +281,7 @@ def test_get_completion_job_not_found(
     job_service_mock: AsyncMock,
 ) -> None:
     """Test that retrieving a missing generation job returns a 404 error."""
-    job_service_mock.get_by_id.side_effect = GenerationNotFoundError()
+    job_service_mock.get_by_id_for_user.side_effect = GenerationNotFoundError()
 
     response = client.get(f"/chat/completions/jobs/{TEST_JOB_ID}")
 

@@ -17,8 +17,11 @@ from ai_notes_api.db.models.datetime import SoftDeleteMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from ai_notes_api.db.models.chat_memory import ChatMemory
+    from ai_notes_api.db.models.document import Document
+    from ai_notes_api.db.models.document_chunk import DocumentChunk
     from ai_notes_api.db.models.generation_job import GenerationJob
     from ai_notes_api.db.models.message import Message
+    from ai_notes_api.db.models.rag_query import RagQuery
     from ai_notes_api.db.models.user import User
 
 
@@ -39,20 +42,23 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
 
     Attributes:
         id (Mapped[UUID]): Unique chat session identifier.
-        user_id (Mapped[UUID]): Identifier of the user who owns the chat
-            session.
+        user_id (Mapped[UUID]): Identifier of the user who owns the chat session.
         user (Mapped[User]): User who owns the chat session.
         title (Mapped[str]): Chat session title.
         generation_status (Mapped[ChatSessionGenerationStatus]): Current LLM
             generation status for the chat session.
-        generation_id (Mapped[UUID | None]): Optional active generation
-            identifier.
+        generation_id (Mapped[UUID | None]): Optional active generation identifier.
         generation_started_at (Mapped[datetime | None]): Date and time when the
             active generation started.
-        messages (Mapped[list[Message]]): Messages that belong to the chat
-            session.
+        messages (Mapped[list[Message]]): Messages that belong to the chat session.
         generation_jobs (Mapped[list[GenerationJob]]): Generation jobs that
             belong to the chat session.
+        memory (Mapped[ChatMemory]): Memory associated with the chat session.
+        documents (Mapped[list[Document]]): Documents that belong to the chat session.
+        document_chunks (Mapped[list[DocumentChunk]]): Document chunks that
+            belong to the chat session.
+        rag_queries (Mapped[list[RagQuery]]): RAG queries that belong to the
+            chat session.
     """
 
     __tablename__ = "chat_sessions"
@@ -95,14 +101,12 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
 
     generation_id: Mapped[UUID | None] = mapped_column(
         Uuid,
-        default=None,
         nullable=True,
         index=True,
     )
 
     generation_started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        default=None,
         nullable=True,
     )
 
@@ -120,4 +124,19 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="chat_session",
         cascade="all, delete-orphan",
         uselist=False,
+    )
+
+    documents: Mapped[list["Document"]] = relationship(
+        back_populates="chat_session",
+        cascade="all, delete-orphan",
+    )
+
+    document_chunks: Mapped[list["DocumentChunk"]] = relationship(
+        back_populates="chat_session",
+        cascade="all, delete-orphan",
+    )
+
+    rag_queries: Mapped[list["RagQuery"]] = relationship(
+        back_populates="chat_session",
+        cascade="all, delete-orphan",
     )

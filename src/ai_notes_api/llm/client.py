@@ -12,7 +12,7 @@ from loguru import logger
 from openai import AsyncOpenAI
 
 from ai_notes_api.core import settings
-from ai_notes_api.llm.models import LLMResponse, LLMStreamEvent, LLMToolCall
+from ai_notes_api.llm.schemas import LLMResponse, LLMStreamEvent, LLMToolCall
 
 
 class LLMClient:

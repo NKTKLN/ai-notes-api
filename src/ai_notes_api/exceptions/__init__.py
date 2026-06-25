@@ -4,18 +4,31 @@ This package re-exports application exceptions and exception handler
 registration utilities.
 """
 
-from .base import AppException, register_exception_handlers
-from .chat_memory import (
+from ai_notes_api.exceptions.base import AppException, register_exception_handlers
+from ai_notes_api.exceptions.chat_memory import (
     ChatMemoryDependenciesNotConfiguredError,
     ChatMemoryNotFoundError,
     MemoryInProgressError,
 )
-from .chat_session import ChatSessionNotFoundError
-from .generation_job import GenerationInProgressError, GenerationNotFoundError
-from .message import MessageNotFoundError
-from .note import NoteNotFoundError
-from .token import InvalidTokenError
-from .user import (
+from ai_notes_api.exceptions.chat_session import ChatSessionNotFoundError
+from ai_notes_api.exceptions.document import DocumentNotFoundError
+from ai_notes_api.exceptions.document_processing import (
+    ChunkEmbeddingCountMismatchError,
+    DocumentProcessingJobNotFoundError,
+    InvalidChunkSizeError,
+    InvalidOverlapError,
+    OverlapGreaterThanOrEqualChunkSizeError,
+    UnsupportedDocumentFormatError,
+)
+from ai_notes_api.exceptions.generation_job import (
+    GenerationInProgressError,
+    GenerationMessageMissingError,
+    GenerationNotFoundError,
+)
+from ai_notes_api.exceptions.message import MessageNotFoundError
+from ai_notes_api.exceptions.note import NoteNotFoundError
+from ai_notes_api.exceptions.token import InvalidTokenError
+from ai_notes_api.exceptions.user import (
     InactiveUserError,
     InvalidCredentialsError,
     UserAlreadyExistsError,
@@ -34,8 +47,16 @@ __all__ = [
     "UserNotFoundError",
     "register_exception_handlers",
     "GenerationInProgressError",
+    "GenerationMessageMissingError",
     "GenerationNotFoundError",
     "ChatMemoryNotFoundError",
     "MemoryInProgressError",
     "ChatMemoryDependenciesNotConfiguredError",
+    "DocumentNotFoundError",
+    "ChunkEmbeddingCountMismatchError",
+    "DocumentProcessingJobNotFoundError",
+    "InvalidChunkSizeError",
+    "InvalidOverlapError",
+    "OverlapGreaterThanOrEqualChunkSizeError",
+    "UnsupportedDocumentFormatError",
 ]

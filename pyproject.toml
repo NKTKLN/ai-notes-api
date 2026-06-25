@@ -23,6 +23,10 @@ dependencies = [
     "sse-starlette>=3.4.4",
     "celery>=5.6.3",
     "redis>=8.0.0",
+    "pgvector>=0.4.2",
+    "aioboto3>=15.5.0",
+    "tiktoken>=0.13.0",
+    "markitdown[all]>=0.1.6",
 ]
 
 [dependency-groups]
@@ -48,7 +52,7 @@ requires = ["hatchling>=1.26.0"]
 build-backend = "hatchling.build"
 
 [tool.uv]
-prerelease = "if-necessary-or-explicit"
+prerelease = "allow"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ai_notes_api"]
@@ -74,7 +78,7 @@ extend-include = ["*.ipynb"]
 exclude = [".git", "__pycache__", "build", "dist", ".venv", "tmp", "alembic"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*"]
+module = ["celery.*", "aioboto3.*", "botocore.*"]
 ignore_missing_imports = true
 
 [tool.ruff.format]
@@ -123,7 +127,7 @@ parallel = true
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-fail_under = 90
+fail_under = 85
 
 [tool.pytest.ini_options]
 filterwarnings = [

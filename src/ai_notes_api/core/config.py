@@ -29,10 +29,19 @@ class Settings(BaseSettings):
         open_ai_embedding_model (str): OpenAI embedding model name.
         open_ai_api_url (str | None): Optional custom OpenAI-compatible API URL.
         open_ai_max_output_tokens (int): Maximum number of output tokens.
+        tiktoken_encoding_name (str): Name of the tiktoken encoding used to
+            tokenize text when splitting documents into chunks.
         llm_context_messages_limit (int): Maximum number of context messages
             sent to the LLM.
         celery_broker_url (str): Celery broker URL.
         celery_result_backend (str): Celery result backend URL.
+        s3_endpoint_url (str): S3 endpoint URL.
+        s3_access_key_id (str): S3 access key ID.
+        s3_secret_access_key (str): S3 secret access key.
+        s3_region (str): S3 region name.
+        s3_bucket_name (str): Name of the bucket used to store documents.
+        s3_presigned_url_expire_seconds (int): Lifetime of presigned document
+            URLs in seconds.
         log_format (str): Format string used by Loguru for log messages.
         database_url (str): Async PostgreSQL database connection URL.
         model_config (SettingsConfigDict): Pydantic settings configuration.
@@ -58,10 +67,19 @@ class Settings(BaseSettings):
     open_ai_api_url: str | None = Field(default=None)
     open_ai_max_output_tokens: int = Field(default=700)
 
+    tiktoken_encoding_name: str = Field(default="cl100k_base")
+
     llm_context_messages_limit: int = Field(default=20)
 
     celery_broker_url: str = Field(...)
     celery_result_backend: str = Field(...)
+
+    s3_endpoint_url: str = Field(...)
+    s3_access_key_id: str = Field(...)
+    s3_secret_access_key: str = Field(...)
+    s3_region: str = Field(default="us-east-1")
+    s3_bucket_name: str = Field(default="documents")
+    s3_presigned_url_expire_seconds: int = Field(default=3600)
 
     log_format: str = (
         "<cyan>[{time:DD/MM/YY HH:mm:ss}]</cyan> "

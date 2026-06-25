@@ -31,6 +31,10 @@ router = APIRouter(
     response_model=MessageResponseSchema,
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Message not found",
@@ -70,6 +74,10 @@ async def get_message(
     response_model=StatusResponseSchema,
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Message not found",

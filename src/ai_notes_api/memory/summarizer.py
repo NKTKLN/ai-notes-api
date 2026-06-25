@@ -8,7 +8,7 @@ from openai import AsyncOpenAI
 from openai.types.responses import ResponseInputParam
 
 from ai_notes_api.core import settings
-from ai_notes_api.llm.models import LLMMessage
+from ai_notes_api.llm.schemas import LLMMessage
 from ai_notes_api.memory.prompts import SUMMARY_PROMPT
 
 

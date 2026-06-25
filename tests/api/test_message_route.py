@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from ai_notes_api.api.v1.dependencies import get_current_user, get_message_service
-from ai_notes_api.api.v1.message import router
+from ai_notes_api.api.v1.messages import router
 from ai_notes_api.db.models import MessageRole, User
 from ai_notes_api.schemas import MessageResponseSchema
 

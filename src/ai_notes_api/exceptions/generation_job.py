@@ -26,3 +26,14 @@ class GenerationNotFoundError(AppException):
     def __init__(self) -> None:
         """Initialize the generation not found exception."""
         super().__init__("Generation not found")
+
+
+class GenerationMessageMissingError(AppException):
+    """Exception raised when a completion does not return a persisted message."""
+
+    status_code: int = 500
+    code: str = "GENERATION_MESSAGE_MISSING"
+
+    def __init__(self) -> None:
+        """Initialize the generation message missing exception."""
+        super().__init__("Completion did not return a persisted message id")

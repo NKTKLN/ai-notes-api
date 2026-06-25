@@ -7,7 +7,7 @@ import pytest
 
 from ai_notes_api.core import settings
 from ai_notes_api.db.models import MessageRole
-from ai_notes_api.llm.models import LLMMessage
+from ai_notes_api.llm.schemas import LLMMessage
 from ai_notes_api.memory.prompts import SUMMARY_PROMPT
 from ai_notes_api.memory.summarizer import MemorySummarizer
 
