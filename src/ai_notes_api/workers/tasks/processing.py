@@ -5,17 +5,12 @@ This module defines Celery tasks used to run queued document processing jobs.
 
 import asyncio
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_notes_api.db.models import DocumentProcessingJobStatus
 from ai_notes_api.db.session import worker_session
-from ai_notes_api.exceptions.document_processing_job import (
-    DocumentProcessingJobNotFoundError,
-)
+from ai_notes_api.ingestion import TextExtractor, TokenTextChunker
 from ai_notes_api.integrations import openai_client
 from ai_notes_api.llm import EmbeddingClient
 from ai_notes_api.repositories import (
@@ -23,7 +18,10 @@ from ai_notes_api.repositories import (
     DocumentProcessingJobRepository,
     DocumentRepository,
 )
-from ai_notes_api.services import DocumentProcessingService
+from ai_notes_api.services import (
+    DocumentProcessingJobService,
+    DocumentProcessingService,
+)
 from ai_notes_api.storage import DocumentStorage, get_s3_client
 from ai_notes_api.workers.celery_app import celery_app
 
@@ -56,36 +54,36 @@ async def _run_document_processing_job(job_id: UUID) -> None:
         worker_session() as session,
         asynccontextmanager(get_s3_client)() as s3_client,
     ):
-        processing_job_repository = DocumentProcessingJobRepository(session)
+        processing_repository = DocumentProcessingJobRepository(session)
         document_repository = DocumentRepository(session)
         chunk_repository = DocumentChunkRepository(session)
 
+        processing_jobs = DocumentProcessingJobService(processing_repository)
+
         storage = DocumentStorage(s3_client)
 
-        processing_job = await processing_job_repository.get_by_id(job_id)
+        text_extractor = TextExtractor()
+        chunker = TokenTextChunker()
 
-        if processing_job is None:
-            raise DocumentProcessingJobNotFoundError()
+        processing_job = await processing_jobs.get_by_id(job_id)
 
         document_processing = DocumentProcessingService(
             document_repository=document_repository,
             chunk_repository=chunk_repository,
             storage=storage,
             embeddings=embeddings,
+            text_extractor=text_extractor,
+            chunker=chunker,
         )
 
         try:
             logger.info("Document processing job started: id={}", job_id)
 
-            processing_job.status = DocumentProcessingJobStatus.RUNNING
-            processing_job.started_at = datetime.now(UTC)
-            processing_job = await processing_job_repository.update(processing_job)
+            await processing_jobs.set_job_running(processing_job.id)
 
-            document_processing.process_document(processing_job.document_id)
+            await document_processing.process_document(processing_job.document_id)
 
-            processing_job.status = DocumentProcessingJobStatus.COMPLETED
-            processing_job.finished_at = datetime.now(UTC)
-            await processing_job_repository.update(processing_job)
+            await processing_jobs.set_job_completed(processing_job.id)
 
             await session.commit()
 
@@ -96,43 +94,11 @@ async def _run_document_processing_job(job_id: UUID) -> None:
 
             logger.exception("Document processing job failed: id={}", job_id)
 
-            await _mark_job_failed(
-                session=session,
-                job_repository=processing_job_repository,
-                job_id=job_id,
-                error=str(exc),
+            await processing_jobs.set_job_failed(
+                job_id=processing_job.id,
+                error_message=str(exc),
             )
 
+            await session.commit()
+
             raise
-
-
-async def _mark_job_failed(
-    session: AsyncSession,
-    job_repository: DocumentProcessingJobRepository,
-    job_id: UUID,
-    error: str,
-) -> None:
-    """Mark a document processing job as failed.
-
-    This is invoked after the job transaction has been rolled back, so it runs
-    in a fresh transaction to persist the failure state.
-
-    Args:
-        session (AsyncSession): Database session used to commit the failure state.
-        job_repository (DocumentProcessingJobRepository): Repository used to
-            update the processing job.
-        job_id (UUID): Unique document processing job identifier.
-        error (str): Error message describing the failure.
-    """
-    processing_job = await job_repository.get_by_id(job_id)
-
-    if processing_job is None:
-        return
-
-    processing_job.status = DocumentProcessingJobStatus.FAILED
-    processing_job.error = error[:ERROR_MAX_LENGTH]
-    processing_job.finished_at = datetime.now(UTC)
-
-    await job_repository.update(processing_job)
-
-    await session.commit()
