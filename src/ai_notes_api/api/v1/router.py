@@ -10,7 +10,8 @@ from ai_notes_api.api.v1 import (
     auth,
     chat_sessions,
     completions,
-    generation_jobs,
+    documents,
+    generation_job,
     healthcheck,
     messages,
     notes,
@@ -25,5 +26,6 @@ router.include_router(auth.router)
 router.include_router(notes.router)
 router.include_router(chat_sessions.router)
 router.include_router(messages.router)
+router.include_router(documents.router)
 router.include_router(completions.router)
-router.include_router(generation_jobs.router)
+router.include_router(generation_job.router)

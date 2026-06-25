@@ -31,8 +31,9 @@ from ai_notes_api.services import (
     AuthService,
     ChatMemoryService,
     ChatSessionService,
+    DocumentProcessingJobService,
     DocumentService,
-    JobService,
+    GenerationJobService,
     LLMService,
     MessageService,
     NoteService,
@@ -206,7 +207,7 @@ def get_llm_service(
 
 def get_job_service(
     session: Annotated[AsyncSession, Depends(get_db)],
-) -> JobService:
+) -> GenerationJobService:
     """Provide a generation job service instance.
 
     Args:
@@ -224,8 +225,8 @@ def get_job_service(
         memory_repository=memories,
     )
 
-    return JobService(
-        job_repository=jobs,
+    return GenerationJobService(
+        generation_repository=jobs,
         session_service=sessions_service,
     )
 
@@ -262,7 +263,6 @@ def get_document_service(
         DocumentService: Configured document service instance.
     """
     documents = DocumentRepository(db_session)
-    processing = DocumentProcessingJobRepository(db_session)
     sessions = ChatSessionRepository(db_session)
     memories = ChatMemoryRepository(db_session)
 
@@ -275,7 +275,24 @@ def get_document_service(
 
     return DocumentService(
         document_repository=documents,
-        processing_repository=processing,
         session_service=sessions_service,
         storage=storage,
     )
+
+
+def get_document_processinng_job_service(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> DocumentProcessingJobService:
+    """Provide a document processing job service instance.
+
+    Args:
+        session (AsyncSession): Asynchronous database session provided by
+            FastAPI dependency injection.
+
+    Returns:
+        DocumentProcessingJobService: Configured document processing job service
+        instance.
+    """
+    processing = DocumentProcessingJobRepository(session)
+
+    return DocumentProcessingJobService(processing)
