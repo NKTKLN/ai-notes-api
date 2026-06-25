@@ -50,6 +50,17 @@ class OverlapGreaterThanOrEqualChunkSizeError(AppException):
         super().__init__("overlap должен быть меньше chunk_size")
 
 
+class ChunkEmbeddingCountMismatchError(AppException):
+    """Exception raised when chunk and embedding counts do not match."""
+
+    status_code: int = 500
+    code: str = "CHUNK_EMBEDDING_COUNT_MISMATCH"
+
+    def __init__(self) -> None:
+        """Initialize the chunk and embedding count mismatch exception."""
+        super().__init__("Chunks and embeddings count mismatch")
+
+
 class UnsupportedDocumentFormatError(AppException):
     """Exception raised when document format is not supported."""
 

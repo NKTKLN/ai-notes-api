@@ -6,24 +6,18 @@ splitting its text, generating embeddings, persisting the resulting chunks, and
 updating the document status accordingly.
 """
 
-import asyncio
-import hashlib
-from io import BytesIO
 from uuid import UUID
 
-import tiktoken
 from loguru import logger
-from markitdown import MarkItDown, StreamInfo, UnsupportedFormatException
 
 from ai_notes_api.core import settings
 from ai_notes_api.db.models import Document, DocumentChunk, DocumentStatus
 from ai_notes_api.exceptions import (
+    ChunkEmbeddingCountMismatchError,
     DocumentNotFoundError,
-    InvalidChunkSizeError,
-    InvalidOverlapError,
-    OverlapGreaterThanOrEqualChunkSizeError,
-    UnsupportedDocumentFormatError,
 )
+from ai_notes_api.ingestion import TextExtractor, TokenTextChunker
+from ai_notes_api.ingestion.schemas import TextChunk
 from ai_notes_api.llm import EmbeddingClient
 from ai_notes_api.repositories import DocumentChunkRepository, DocumentRepository
 from ai_notes_api.storage import DocumentStorage
@@ -40,18 +34,22 @@ class DocumentProcessingService:
         storage (DocumentStorage): Object storage helper used to download the
             source file from S3.
         embeddings (EmbeddingClient): Client used to generate chunk embeddings.
+        text_extractor (TextExtractor): Extractor used to convert raw document
+            bytes into text.
+        chunker (TokenTextChunker): Chunker used to split extracted text into
+            embeddable chunks.
     """
 
-    CHUNK_SIZE = 1_000
-    CHUNK_OVERLAP = 200
     ERROR_MAX_LENGTH = 10_000
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         document_repository: DocumentRepository,
         chunk_repository: DocumentChunkRepository,
         storage: DocumentStorage,
         embeddings: EmbeddingClient,
+        text_extractor: TextExtractor,
+        chunker: TokenTextChunker,
     ) -> None:
         """Initialize the document processing service.
 
@@ -62,11 +60,15 @@ class DocumentProcessingService:
                 used by the service.
             storage (DocumentStorage): Object storage helper used by the service.
             embeddings (EmbeddingClient): Embedding client used by the service.
+            text_extractor (TextExtractor): Text extractor used by the service.
+            chunker (TokenTextChunker): Text chunker used by the service.
         """
         self.documents = document_repository
         self.chunks = chunk_repository
         self.storage = storage
         self.embeddings = embeddings
+        self.text_extractor = text_extractor
+        self.chunker = chunker
 
     async def process_document(self, document_id: UUID) -> Document:
         """Process a document into embedded chunks.
@@ -93,19 +95,21 @@ class DocumentProcessingService:
 
             data = await self.storage.download_file(document.storage_object_name)
 
-            text = await self._extract_text(data, document.content_type)
-            text_chunks = await self._chunk_text(text)
+            text = await self.text_extractor.extract(data, document.content_type)
+            text_chunks = await self.chunker.chunk(text)
 
-            embeddings = await self.embeddings.create_embedding(text_chunks)
+            embeddings = await self.embeddings.create_embedding(
+                [chunk.content for chunk in text_chunks]
+            )
 
             await self._persist_chunks(document, text_chunks, embeddings)
 
-            document = await self._mark_ready(document)
+            document = await self._set_document_ready(document)
 
         except Exception as exc:
             logger.exception("Document processing failed: id={}", document_id)
 
-            await self._mark_failed(document, str(exc))
+            await self._set_document_failed(document, str(exc))
 
             raise
 
@@ -116,33 +120,36 @@ class DocumentProcessingService:
     async def _persist_chunks(
         self,
         document: Document,
-        text_chunks: list[str],
+        text_chunks: list[TextChunk],
         embeddings: list[list[float]],
     ) -> None:
         """Build and persist document chunks from text and embeddings.
 
         Args:
             document (Document): Source document the chunks belong to.
-            text_chunks (list[str]): Ordered text chunks to persist.
+            text_chunks (list[TextChunk]): Ordered text chunks to persist.
             embeddings (list[list[float]]): Embedding vectors aligned with
                 ``text_chunks`` by index.
+
+        Raises:
+            ChunkEmbeddingCountMismatchError: If the number of text chunks and
+                embeddings differ.
         """
+        if len(text_chunks) != len(embeddings):
+            raise ChunkEmbeddingCountMismatchError()
+
         chunks = []
 
-        for chunk_index in range(len(text_chunks)):
-            text_chunk = text_chunks[chunk_index]
-            embedding = embeddings[chunk_index]
-
-            chunk_hash = hashlib.sha256(text_chunk.encode())
-
+        for text_chunk, embedding in zip(text_chunks, embeddings, strict=True):
             chunks.append(
                 DocumentChunk(
                     user_id=document.user_id,
                     session_id=document.session_id,
                     document_id=document.id,
-                    chunk_index=chunk_index,
-                    content=text_chunk,
-                    content_hash=(chunk_hash).hexdigest(),
+                    chunk_index=text_chunk.index,
+                    content=text_chunk.content,
+                    content_hash=text_chunk.content_hash,
+                    token_count=text_chunk.token_count,
                     embedding=embedding,
                     embedding_model=settings.open_ai_embedding_model,
                 )
@@ -150,122 +157,7 @@ class DocumentProcessingService:
 
         await self.chunks.create_many(chunks)
 
-    async def _extract_text(self, data: bytes, content_type: str) -> str:
-        """Extract markdown text from raw document bytes.
-
-        Args:
-            data (bytes): Raw document content to convert.
-            content_type (str): MIME type of the document.
-
-        Returns:
-            str: Extracted document text as markdown.
-
-        Raises:
-            UnsupportedDocumentFormatError: If MarkItDown does not support the
-                given content type.
-        """
-        logger.debug(
-            "Extracting text: content_type={}, size={} bytes",
-            content_type,
-            len(data),
-        )
-
-        def _convert() -> str:
-            md = MarkItDown()
-
-            try:
-                result = md.convert_stream(
-                    BytesIO(data),
-                    stream_info=StreamInfo(mimetype=content_type),
-                )
-
-            except UnsupportedFormatException as exc:
-                logger.warning(
-                    "Unsupported document format: content_type={}", content_type
-                )
-                raise UnsupportedDocumentFormatError(content_type) from exc
-
-            return result.markdown
-
-        loop = asyncio.get_running_loop()
-        markdown = await loop.run_in_executor(None, _convert)
-
-        logger.debug(
-            "Text extraction finished: content_type={}, chars={}",
-            content_type,
-            len(markdown),
-        )
-
-        return markdown
-
-    async def _chunk_text(
-        self,
-        text: str,
-        chunk_size: int = 1000,
-        overlap: int = 200,
-    ) -> list[str]:
-        """Split extracted text into token-based overlapping chunks.
-
-        Args:
-            text (str): Plain text to split.
-            chunk_size (int): Maximum number of tokens in each chunk.
-            overlap (int): Number of tokens repeated between adjacent chunks.
-
-        Returns:
-            list[str]: Ordered non-empty text chunks ready for embedding.
-
-        Raises:
-            InvalidChunkSizeError: If `chunk_size` is less than or equal to zero.
-            InvalidOverlapError: If `overlap` is negative.
-            OverlapGreaterThanOrEqualChunkSizeError: If `overlap` is greater than
-                or equal to `chunk_size`.
-        """
-        if chunk_size <= 0:
-            raise InvalidChunkSizeError()
-
-        if overlap < 0:
-            raise InvalidOverlapError()
-
-        if overlap >= chunk_size:
-            raise OverlapGreaterThanOrEqualChunkSizeError()
-
-        logger.debug(
-            "Chunking text: chars={}, chunk_size={}, overlap={}",
-            len(text),
-            chunk_size,
-            overlap,
-        )
-
-        def _chunk() -> list[str]:
-            encoding = tiktoken.get_encoding(settings.tiktoken_encoding_name)
-
-            tokens = encoding.encode(text)
-            chunks = []
-
-            step = chunk_size - overlap
-
-            for start in range(0, len(tokens), step):
-                end = start + chunk_size
-                chunk_tokens = tokens[start:end]
-
-                chunk = encoding.decode(chunk_tokens).strip()
-
-                if chunk:
-                    chunks.append(chunk)
-
-                if end >= len(tokens):
-                    break
-
-            return chunks
-
-        loop = asyncio.get_running_loop()
-        chunks = await loop.run_in_executor(None, _chunk)
-
-        logger.debug("Chunking finished: chunks={}", len(chunks))
-
-        return chunks
-
-    async def _mark_ready(self, document: Document) -> Document:
+    async def _set_document_ready(self, document: Document) -> Document:
         """Mark a document as successfully processed.
 
         Args:
@@ -279,7 +171,7 @@ class DocumentProcessingService:
 
         return await self.documents.update(document)
 
-    async def _mark_failed(self, document: Document, error: str) -> Document:
+    async def _set_document_failed(self, document: Document, error: str) -> Document:
         """Mark a document as failed.
 
         Args:
