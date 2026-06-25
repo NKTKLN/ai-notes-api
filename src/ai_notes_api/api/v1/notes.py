@@ -34,6 +34,12 @@ router = APIRouter(
     description="Create a new note and return the created note data.",
     response_model=NoteResponseSchema,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
+    },
 )
 async def create_note(
     data: NoteCreateSchema,
@@ -63,6 +69,12 @@ async def create_note(
     description="Return a paginated list of notes.",
     response_model=NoteListResponseSchema,
     status_code=status.HTTP_200_OK,
+    responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
+    },
 )
 async def get_notes(
     filters: Annotated[
@@ -112,6 +124,10 @@ async def get_notes(
     response_model=NoteResponseSchema,
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Note not found",
@@ -150,6 +166,10 @@ async def get_note(
     response_model=NoteResponseSchema,
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Note not found",
@@ -190,6 +210,10 @@ async def update_note(
     response_model=StatusResponseSchema,
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Note not found",

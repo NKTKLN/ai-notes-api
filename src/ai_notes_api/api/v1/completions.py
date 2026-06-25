@@ -49,6 +49,10 @@ def llm_event_to_sse(event: LLMStreamEvent) -> dict[str, str]:
     description="Generate and stream an assistant response for a chat session.",
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Chat session not found",

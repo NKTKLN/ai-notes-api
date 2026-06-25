@@ -43,6 +43,12 @@ router = APIRouter(
     description="Create a new chat session and return the created data.",
     response_model=ChatSessionResponseSchema,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
+    },
 )
 async def create_chat_session(
     data: ChatSessionCreateSchema,
@@ -73,6 +79,12 @@ async def create_chat_session(
     description="Return a paginated list of chat sessions.",
     response_model=ChatSessionListResponseSchema,
     status_code=status.HTTP_200_OK,
+    responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
+    },
 )
 async def get_chat_sessions(
     filters: Annotated[
@@ -120,6 +132,10 @@ async def get_chat_sessions(
     response_model=ChatSessionResponseSchema,
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Chat session not found",
@@ -159,6 +175,10 @@ async def get_chat_session(
     response_model=ChatSessionResponseSchema,
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Chat session not found",
@@ -200,6 +220,10 @@ async def update_chat_session(
     response_model=StatusResponseSchema,
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Chat session not found",
@@ -239,6 +263,10 @@ async def delete_chat_session(
     response_model=MessageListResponseSchema,
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Chat session not found",
@@ -287,6 +315,10 @@ async def get_chat_session_messages(
     response_model=ChatMemoryResponseSchema,
     status_code=status.HTTP_200_OK,
     responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
         404: {
             "model": ErrorResponseSchema,
             "description": "Chat memory not found",

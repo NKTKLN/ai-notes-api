@@ -15,6 +15,7 @@ from ai_notes_api.api.v1.dependencies import (
 )
 from ai_notes_api.db.models import User
 from ai_notes_api.schemas import (
+    ErrorResponseSchema,
     TokenResponseSchema,
     UserCreateSchema,
     UserResponseSchema,
@@ -33,6 +34,12 @@ router = APIRouter(
     description="Create a new user account and return the created user data.",
     response_model=UserResponseSchema,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        409: {
+            "model": ErrorResponseSchema,
+            "description": "User already exists",
+        },
+    },
 )
 async def register_user(
     data: UserCreateSchema,
@@ -64,6 +71,16 @@ async def register_user(
     description="Authenticate a user and return an access token.",
     response_model=TokenResponseSchema,
     status_code=status.HTTP_200_OK,
+    responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid email or password",
+        },
+        403: {
+            "model": ErrorResponseSchema,
+            "description": "User account is inactive",
+        },
+    },
 )
 async def login_user(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -101,6 +118,12 @@ async def login_user(
     description="Return the currently authenticated user.",
     response_model=UserResponseSchema,
     status_code=status.HTTP_200_OK,
+    responses={
+        401: {
+            "model": ErrorResponseSchema,
+            "description": "Invalid authentication credentials",
+        },
+    },
 )
 async def get_current_user_profile(
     user: Annotated[User, Depends(get_current_user_dependency)],
