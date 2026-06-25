@@ -9,6 +9,7 @@ from uuid import UUID
 from loguru import logger
 
 from ai_notes_api.db.session import worker_session
+from ai_notes_api.exceptions import GenerationMessageMissingError
 from ai_notes_api.integrations import openai_client
 from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
@@ -18,6 +19,7 @@ from ai_notes_api.repositories import (
     MessageRepository,
     NoteRepository,
 )
+from ai_notes_api.schemas.completion import ChatCompletionResponseSchema
 from ai_notes_api.schemas.message import UserMessageCreateSchema
 from ai_notes_api.services import (
     ChatSessionService,
@@ -27,6 +29,25 @@ from ai_notes_api.services import (
     NoteService,
 )
 from ai_notes_api.workers.celery_app import celery_app
+
+
+def _require_message_id(completion: ChatCompletionResponseSchema) -> UUID:
+    """Return the persisted message id of a completion or raise if missing.
+
+    Args:
+        completion (ChatCompletionResponseSchema): Completion produced by the LLM
+            service.
+
+    Returns:
+        UUID: Identifier of the persisted assistant message.
+
+    Raises:
+        GenerationMessageMissingError: If the completion has no persisted message id.
+    """
+    if completion.message_id is None:
+        raise GenerationMessageMissingError()
+
+    return completion.message_id
 
 
 @celery_app.task(name="generation.run")
@@ -67,7 +88,8 @@ async def _run_generation_job(job_id: UUID) -> None:
             memory_repository=memories_repository,
         )
         generation_service = GenerationJobService(
-            generation_repository=generation_repository
+            generation_repository=generation_repository,
+            session_service=sessions_service,
         )
 
         generation = await generation_service.get_by_id(job_id)
@@ -97,7 +119,7 @@ async def _run_generation_job(job_id: UUID) -> None:
 
             await generation_service.set_job_completed(
                 generation_id=generation.id,
-                message_id=completion.message_id,
+                message_id=_require_message_id(completion),
             )
 
             await session.commit()
