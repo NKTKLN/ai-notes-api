@@ -22,6 +22,7 @@ from ai_notes_api.exceptions.document_processing import (
 )
 from ai_notes_api.exceptions.generation_job import (
     GenerationInProgressError,
+    GenerationMessageMissingError,
     GenerationNotFoundError,
 )
 from ai_notes_api.exceptions.message import MessageNotFoundError
@@ -46,6 +47,7 @@ __all__ = [
     "UserNotFoundError",
     "register_exception_handlers",
     "GenerationInProgressError",
+    "GenerationMessageMissingError",
     "GenerationNotFoundError",
     "ChatMemoryNotFoundError",
     "MemoryInProgressError",
