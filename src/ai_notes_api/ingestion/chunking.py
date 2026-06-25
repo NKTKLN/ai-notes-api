@@ -72,7 +72,7 @@ class TokenTextChunker:
             encoding = tiktoken.get_encoding(self.encoding_name)
 
             tokens = encoding.encode(text)
-            chunks = []
+            chunks: list[TextChunk] = []
 
             step = self.chunk_size - self.overlap
 
