@@ -63,6 +63,11 @@ jobs:
       CELERY_BROKER_URL: redis://localhost:6379/0
       CELERY_RESULT_BACKEND: redis://localhost:6379/0
 
+      S3_ENDPOINT_URL: http://localhost:9000
+      S3_ACCESS_KEY_ID: test
+      S3_SECRET_ACCESS_KEY: test
+      S3_BUCKET_NAME: documents
+
     steps:
       - uses: actions/checkout@v4
 
