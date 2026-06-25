@@ -4,15 +4,11 @@ This module defines Celery tasks used to run queued LLM generation jobs.
 """
 
 import asyncio
-from datetime import UTC, datetime
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_notes_api.db.models import GenerationJobStatus
 from ai_notes_api.db.session import worker_session
-from ai_notes_api.exceptions.generation_job import GenerationNotFoundError
 from ai_notes_api.integrations import openai_client
 from ai_notes_api.llm import LLMClient
 from ai_notes_api.repositories import (
@@ -25,13 +21,12 @@ from ai_notes_api.repositories import (
 from ai_notes_api.schemas.message import UserMessageCreateSchema
 from ai_notes_api.services import (
     ChatSessionService,
+    GenerationJobService,
     LLMService,
     MessageService,
     NoteService,
 )
 from ai_notes_api.workers.celery_app import celery_app
-
-ERROR_MAX_LENGTH = 10_000
 
 
 @celery_app.task(name="generation.run")
@@ -60,7 +55,7 @@ async def _run_generation_job(job_id: UUID) -> None:
         messages_repository = MessageRepository(session)
         sessions_repository = ChatSessionRepository(session)
         memories_repository = ChatMemoryRepository(session)
-        generation_job_repository = GenerationJobRepository(session)
+        generation_repository = GenerationJobRepository(session)
 
         notes_service = NoteService(notes_repository)
         messages_service = MessageService(
@@ -71,15 +66,15 @@ async def _run_generation_job(job_id: UUID) -> None:
             session_repository=sessions_repository,
             memory_repository=memories_repository,
         )
+        generation_service = GenerationJobService(
+            generation_repository=generation_repository
+        )
 
-        generation_job = await generation_job_repository.get_by_id(job_id)
-
-        if generation_job is None:
-            raise GenerationNotFoundError()
+        generation = await generation_service.get_by_id(job_id)
 
         message = UserMessageCreateSchema(
-            session_id=generation_job.session_id,
-            content=generation_job.input_message,
+            session_id=generation.session_id,
+            content=generation.input_message,
         )
 
         service = LLMService(
@@ -90,22 +85,20 @@ async def _run_generation_job(job_id: UUID) -> None:
         )
 
         try:
-            logger.info("Generation job started: id={}", job_id)
+            logger.info("Generation job started: id={}", generation.id)
 
-            generation_job.started_at = datetime.now(UTC)
-            generation_job = await generation_job_repository.update(generation_job)
+            await generation_service.set_job_running(generation.id)
 
             completion = await service.generate_job_response(
-                user_id=generation_job.user_id,
-                generation_id=generation_job.id,
+                user_id=generation.user_id,
+                generation_id=generation.id,
                 message=message,
             )
 
-            generation_job.output_message_id = completion.message_id
-            generation_job.status = GenerationJobStatus.COMPLETED
-            generation_job.finished_at = datetime.now(UTC)
-
-            await generation_job_repository.update(generation_job)
+            await generation_service.set_job_completed(
+                generation_id=generation.id,
+                message_id=completion.message_id,
+            )
 
             await session.commit()
 
@@ -116,55 +109,17 @@ async def _run_generation_job(job_id: UUID) -> None:
 
             logger.exception("Generation job failed: id={}", job_id)
 
-            await _mark_job_failed(
-                session=session,
-                job_repository=generation_job_repository,
-                sessions_service=sessions_service,
-                job_id=job_id,
-                error=str(exc),
+            await generation_service.set_job_failed(
+                generation_id=generation.id,
+                error_message=str(exc),
             )
 
+            await sessions_service.release_generation_lock(
+                user_id=generation.user_id,
+                session_id=generation.session_id,
+                generation_id=generation.id,
+            )
+
+            await session.commit()
+
             raise
-
-
-async def _mark_job_failed(
-    session: AsyncSession,
-    job_repository: GenerationJobRepository,
-    sessions_service: ChatSessionService,
-    job_id: UUID,
-    error: str,
-) -> None:
-    """Mark a generation job as failed and release its session lock.
-
-    This is invoked after the job transaction has been rolled back, so it runs
-    in a fresh transaction to persist the failure state and release the chat
-    session generation lock that the rolled-back transaction would otherwise
-    leave held.
-
-    Args:
-        session (AsyncSession): Database session used to commit the failure state.
-        job_repository (GenerationJobRepository): Repository used to update the
-            generation job.
-        sessions_service (ChatSessionService): Chat session service used to
-            release the generation lock.
-        job_id (UUID): Unique generation job identifier.
-        error (str): Error message describing the failure.
-    """
-    generation_job = await job_repository.get_by_id(job_id)
-
-    if generation_job is None:
-        return
-
-    generation_job.status = GenerationJobStatus.FAILED
-    generation_job.error = error[:ERROR_MAX_LENGTH]
-    generation_job.finished_at = datetime.now(UTC)
-
-    await job_repository.update(generation_job)
-
-    await sessions_service.release_generation_lock(
-        user_id=generation_job.user_id,
-        session_id=generation_job.session_id,
-        generation_id=generation_job.id,
-    )
-
-    await session.commit()
