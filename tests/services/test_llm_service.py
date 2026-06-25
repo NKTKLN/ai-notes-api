@@ -1,8 +1,9 @@
 """Tests for LLM service."""
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import patch
 from uuid import UUID
 
 import pytest
@@ -11,7 +12,7 @@ from ai_notes_api.core import settings
 from ai_notes_api.db.models import Message, MessageRole
 from ai_notes_api.exceptions import ChatSessionNotFoundError
 from ai_notes_api.llm import LLMClient
-from ai_notes_api.llm.models import LLMResponse, LLMStreamEvent
+from ai_notes_api.llm.schemas import LLMResponse, LLMStreamEvent, LLMToolCall
 from ai_notes_api.schemas import (
     AssistantMessageCreateSchema,
     UserMessageCreateSchema,
@@ -24,6 +25,20 @@ from ai_notes_api.services.note import NoteService
 TEST_USER_ID = UUID("11111111-1111-1111-1111-111111111111")
 TEST_SESSION_ID = UUID("22222222-2222-2222-2222-222222222222")
 TEST_MESSAGE_ID = UUID("33333333-3333-3333-3333-333333333333")
+
+
+@pytest.fixture(autouse=True)
+def patch_memory_task() -> Generator[None]:
+    """Patch the Celery memory-summary task to avoid hitting the broker.
+
+    Persisting an assistant message enqueues ``update_chat_memory_summary``;
+    without this patch the ``.delay()`` call would block on the message broker.
+
+    Yields:
+        None: Control while the Celery task is patched.
+    """
+    with patch("ai_notes_api.services.llm_service.update_chat_memory_summary"):
+        yield
 
 
 class FakeMessageService:
@@ -139,6 +154,12 @@ class FakeLLMClient:
         """Initialize the fake LLM client."""
         self.response: LLMResponse | None = None
         self.events: list[LLMStreamEvent] = []
+        # Optional queues used to return a different result per call, e.g. to
+        # drive the tool-calls loop across successive model invocations.
+        self.responses: list[LLMResponse] = []
+        self.event_batches: list[list[LLMStreamEvent]] = []
+        self.create_call_count = 0
+        self.stream_call_count = 0
         self.create_input: Any = None
         self.stream_input: Any = None
         self.create_tools: Any = None
@@ -152,10 +173,15 @@ class FakeLLMClient:
         tools: list[dict[str, Any]] | None = None,
         instructions: str | None = None,
     ) -> LLMResponse:
-        """Return the configured response."""
+        """Return the configured response (or the next queued one)."""
+        self.create_call_count += 1
         self.create_input = input_data
         self.create_tools = tools
         self.create_instructions = instructions
+
+        if self.responses:
+            return self.responses.pop(0)
+
         assert self.response is not None
         return self.response
 
@@ -165,11 +191,15 @@ class FakeLLMClient:
         tools: list[dict[str, Any]] | None = None,
         instructions: str | None = None,
     ) -> AsyncGenerator[LLMStreamEvent]:
-        """Yield the configured stream events."""
+        """Yield the configured stream events (or the next queued batch)."""
+        self.stream_call_count += 1
         self.stream_input = input_data
         self.stream_tools = tools
         self.stream_instructions = instructions
-        for event in self.events:
+
+        events = self.event_batches.pop(0) if self.event_batches else self.events
+
+        for event in events:
             yield event
 
 
@@ -187,6 +217,23 @@ class FakeNoteService:
     ) -> list[Any]:
         """Return the configured notes."""
         return self.notes
+
+
+class FakeToolRegistry:
+    """Fake tool registry recording tool executions for LLM service testing."""
+
+    def __init__(self) -> None:
+        """Initialize the fake tool registry."""
+        self.calls: list[tuple[str, str]] = []
+
+    def get_tools(self) -> list[dict[str, Any]]:
+        """Return an empty tool schema list."""
+        return []
+
+    async def call(self, name: str, arguments: str) -> str:
+        """Record and execute a tool call."""
+        self.calls.append((name, arguments))
+        return "tool-result"
 
 
 def _build_service() -> tuple[FakeLLMClient, FakeMessageService, LLMService]:
@@ -419,3 +466,82 @@ async def test_stream_response_propagates_session_not_found() -> None:
 
     assert client.stream_input is None
     assert messages.created_assistant_data == []
+
+
+@pytest.mark.asyncio
+async def test_generate_response_executes_tool_calls_then_finishes() -> None:
+    """Test that requested tool calls are executed and the model is re-invoked."""
+    client, messages, service = _build_service()
+    registry = FakeToolRegistry()
+    client.responses = [
+        LLMResponse(
+            text="",
+            tool_calls=[
+                LLMToolCall(name="search_notes", arguments="{}", call_id="call-1")
+            ],
+            output_items=[{"type": "function_call", "call_id": "call-1"}],
+            raw=None,
+        ),
+        LLMResponse(text="Final answer", raw=_raw_metadata()),
+    ]
+
+    with patch(
+        "ai_notes_api.services.llm_service.build_registry",
+        return_value=registry,
+    ):
+        result = await service.generate_response(
+            user_id=TEST_USER_ID,
+            message=_user_message(),
+        )
+
+    assert registry.calls == [("search_notes", "{}")]
+    assert client.create_call_count == 2
+    assert result.answer == "Final answer"
+    assert messages.created_assistant_data[0].content == "Final answer"
+
+
+@pytest.mark.asyncio
+async def test_stream_response_executes_tool_calls_then_finishes() -> None:
+    """Test that streaming executes tool calls and re-streams until completion."""
+    client, messages, service = _build_service()
+    registry = FakeToolRegistry()
+    client.event_batches = [
+        [
+            LLMStreamEvent(
+                type="final",
+                response=LLMResponse(
+                    text="",
+                    tool_calls=[
+                        LLMToolCall(name="search_notes", arguments="{}", call_id="c1")
+                    ],
+                    output_items=[{"type": "function_call", "call_id": "c1"}],
+                    raw=None,
+                ),
+            )
+        ],
+        [
+            LLMStreamEvent(type="delta", delta="Done"),
+            LLMStreamEvent(
+                type="final",
+                response=LLMResponse(text="Done", raw=_raw_metadata()),
+            ),
+        ],
+    ]
+
+    with patch(
+        "ai_notes_api.services.llm_service.build_registry",
+        return_value=registry,
+    ):
+        events = [
+            event
+            async for event in service.stream_response(
+                user_id=TEST_USER_ID,
+                message=_user_message(),
+            )
+        ]
+
+    assert registry.calls == [("search_notes", "{}")]
+    assert client.stream_call_count == 2
+    assert [event.type for event in events] == ["final", "delta", "final"]
+    assert len(messages.created_assistant_data) == 1
+    assert messages.created_assistant_data[0].content == "Done"
