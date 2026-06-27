@@ -163,43 +163,6 @@ class LLMClient:
 
         return self._map_response(response)
 
-    async def get_text_response(  # noqa: PLR0913
-        self,
-        input_data: str | list[dict[str, Any]],
-        tools: list[dict[str, Any]] | None = None,
-        instructions: str | None = None,
-        text_format: dict[str, Any] | None = None,
-        max_output_tokens: int | None = None,
-        temperature: float | None = None,
-    ) -> str:
-        """Generate a response and return only its text.
-
-        Args:
-            input_data (str | list[dict[str, Any]]): Prompt text or a list of
-                structured input messages.
-            tools (list[dict[str, Any]] | None): Optional tool definitions the
-                model may call.
-            instructions (str | None): Optional system-level instructions.
-            text_format (dict[str, Any] | None): Optional structured output
-                format specification.
-            max_output_tokens (int | None): Optional maximum number of tokens
-                to generate.
-            temperature (float | None): Optional sampling temperature.
-
-        Returns:
-            str: Generated response text.
-        """
-        response = await self.create_response(
-            input_data=input_data,
-            tools=tools,
-            instructions=instructions,
-            text_format=text_format,
-            max_output_tokens=max_output_tokens,
-            temperature=temperature,
-        )
-
-        return response.text
-
     async def stream_response_events(
         self,
         input_data: str | list[dict[str, Any]],

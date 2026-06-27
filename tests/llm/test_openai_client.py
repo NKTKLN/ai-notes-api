@@ -204,31 +204,6 @@ async def test_create_response_calls_openai_and_maps_response(
 
 
 @pytest.mark.asyncio
-async def test_get_text_response_returns_only_text(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Test that text response helper returns only text."""
-    client = LLMClient(Mock())
-    create_response_mock = AsyncMock(
-        return_value=SimpleNamespace(text="Only text"),
-    )
-
-    monkeypatch.setattr(client, "create_response", create_response_mock)
-
-    result = await client.get_text_response("Prompt")
-
-    assert result == "Only text"
-    create_response_mock.assert_awaited_once_with(
-        input_data="Prompt",
-        tools=None,
-        instructions=None,
-        text_format=None,
-        max_output_tokens=None,
-        temperature=None,
-    )
-
-
-@pytest.mark.asyncio
 async def test_stream_response_events_yields_deltas_and_final(
     fake_openai_client: Mock,
 ) -> None:

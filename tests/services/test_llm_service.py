@@ -31,6 +31,7 @@ TEST_SESSION_ID = UUID("22222222-2222-2222-2222-222222222222")
 TEST_MESSAGE_ID = UUID("33333333-3333-3333-3333-333333333333")
 TEST_DOCUMENT_ID = UUID("44444444-4444-4444-4444-444444444444")
 TEST_CHUNK_ID = UUID("55555555-5555-5555-5555-555555555555")
+TEST_GENERATION_ID = UUID("66666666-6666-6666-6666-666666666666")
 
 
 @pytest.fixture(autouse=True)
@@ -345,13 +346,14 @@ def _raw_metadata() -> SimpleNamespace:
 
 
 @pytest.mark.asyncio
-async def test_generate_response_persists_and_returns_metadata() -> None:
+async def test_generate_job_response_persists_and_returns_metadata() -> None:
     """Test that generating a response persists messages and returns metadata."""
     client, messages, service = _build_service()
     client.response = LLMResponse(text="Hi there", raw=_raw_metadata())
 
-    result = await service.generate_response(
+    result = await service.generate_job_response(
         user_id=TEST_USER_ID,
+        generation_id=TEST_GENERATION_ID,
         message=_user_message(),
     )
 
@@ -378,7 +380,7 @@ async def test_generate_response_persists_and_returns_metadata() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_response_builds_prompt_from_context() -> None:
+async def test_generate_job_response_builds_prompt_from_context() -> None:
     """Test that the prompt is built from context messages and passed to client."""
     client, messages, service = _build_service()
     client.response = LLMResponse(text="Answer", raw=_raw_metadata())
@@ -393,8 +395,9 @@ async def test_generate_response_builds_prompt_from_context() -> None:
         )
     ]
 
-    await service.generate_response(
+    await service.generate_job_response(
         user_id=TEST_USER_ID,
+        generation_id=TEST_GENERATION_ID,
         message=_user_message(),
     )
 
@@ -404,13 +407,14 @@ async def test_generate_response_builds_prompt_from_context() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_response_uses_context_messages_limit() -> None:
+async def test_generate_job_response_uses_context_messages_limit() -> None:
     """Test that the configured context message limit is forwarded."""
     client, messages, service = _build_service()
     client.response = LLMResponse(text="Answer", raw=_raw_metadata())
 
-    await service.generate_response(
+    await service.generate_job_response(
         user_id=TEST_USER_ID,
+        generation_id=TEST_GENERATION_ID,
         message=_user_message(),
     )
 
@@ -418,13 +422,14 @@ async def test_generate_response_uses_context_messages_limit() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_response_handles_missing_metadata() -> None:
+async def test_generate_job_response_handles_missing_metadata() -> None:
     """Test that missing provider metadata falls back to defaults."""
     client, messages, service = _build_service()
     client.response = LLMResponse(text="Answer", raw=None)
 
-    result = await service.generate_response(
+    result = await service.generate_job_response(
         user_id=TEST_USER_ID,
+        generation_id=TEST_GENERATION_ID,
         message=_user_message(),
     )
 
@@ -441,14 +446,15 @@ async def test_generate_response_handles_missing_metadata() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_response_propagates_session_not_found() -> None:
+async def test_generate_job_response_propagates_session_not_found() -> None:
     """Test that a missing session error is propagated without calling the client."""
     client, messages, service = _build_service()
     messages.raise_on_user_message = ChatSessionNotFoundError()
 
     with pytest.raises(ChatSessionNotFoundError):
-        await service.generate_response(
+        await service.generate_job_response(
             user_id=TEST_USER_ID,
+            generation_id=TEST_GENERATION_ID,
             message=_user_message(),
         )
 
@@ -544,7 +550,7 @@ async def test_stream_response_propagates_session_not_found() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_response_executes_tool_calls_then_finishes() -> None:
+async def test_generate_job_response_executes_tool_calls_then_finishes() -> None:
     """Test that requested tool calls are executed and the model is re-invoked."""
     client, messages, service = _build_service()
     registry = FakeToolRegistry()
@@ -564,8 +570,9 @@ async def test_generate_response_executes_tool_calls_then_finishes() -> None:
         "ai_notes_api.services.llm_service.build_registry",
         return_value=registry,
     ):
-        result = await service.generate_response(
+        result = await service.generate_job_response(
             user_id=TEST_USER_ID,
+            generation_id=TEST_GENERATION_ID,
             message=_user_message(),
         )
 
@@ -623,7 +630,7 @@ async def test_stream_response_executes_tool_calls_then_finishes() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_response_embeds_question_for_retrieval() -> None:
+async def test_generate_job_response_embeds_question_for_retrieval() -> None:
     """Test that the question is embedded and used for chunk vector search."""
     client, _messages, service = _build_service()
     client.response = LLMResponse(text="Answer", raw=_raw_metadata())
@@ -631,8 +638,9 @@ async def test_generate_response_embeds_question_for_retrieval() -> None:
     embeddings = cast(FakeEmbeddingClient, service.context.embeddings)
     chunks = cast(FakeDocumentChunkService, service.context.chunks)
 
-    await service.generate_response(
+    await service.generate_job_response(
         user_id=TEST_USER_ID,
+        generation_id=TEST_GENERATION_ID,
         message=_user_message(content="What is RAG?"),
     )
 
@@ -642,7 +650,7 @@ async def test_generate_response_embeds_question_for_retrieval() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_response_includes_retrieved_chunks_in_prompt() -> None:
+async def test_generate_job_response_includes_retrieved_chunks_in_prompt() -> None:
     """Test that retrieved document chunks are injected into the LLM prompt."""
     client, _messages, service = _build_service()
     client.response = LLMResponse(text="Answer", raw=_raw_metadata())
@@ -656,8 +664,9 @@ async def test_generate_response_includes_retrieved_chunks_in_prompt() -> None:
         )
     ]
 
-    await service.generate_response(
+    await service.generate_job_response(
         user_id=TEST_USER_ID,
+        generation_id=TEST_GENERATION_ID,
         message=_user_message(),
     )
 
@@ -669,13 +678,14 @@ async def test_generate_response_includes_retrieved_chunks_in_prompt() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_response_includes_question_in_prompt() -> None:
+async def test_generate_job_response_includes_question_in_prompt() -> None:
     """Test that the user question is included as a prompt message."""
     client, _messages, service = _build_service()
     client.response = LLMResponse(text="Answer", raw=_raw_metadata())
 
-    await service.generate_response(
+    await service.generate_job_response(
         user_id=TEST_USER_ID,
+        generation_id=TEST_GENERATION_ID,
         message=_user_message(content="My question"),
     )
 

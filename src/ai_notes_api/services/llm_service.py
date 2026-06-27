@@ -266,46 +266,6 @@ class LLMService:
                 generation_id=generation_id,
             )
 
-    async def generate_response(
-        self,
-        user_id: UUID,
-        message: UserMessageCreateSchema,
-    ) -> ChatCompletionResponseSchema:
-        """Generate and persist an assistant response.
-
-        Args:
-            user_id (UUID): Unique identifier of the user requesting the response.
-            message (UserMessageCreateSchema): Validated user message data.
-
-        Returns:
-            ChatCompletionResponseSchema: Generated assistant response data.
-
-        Raises:
-            ChatSessionNotFoundError: If no accessible chat session exists.
-            GenerationInProgressError: If generation is already in progress.
-        """
-        generation_id = uuid4()
-
-        await self.sessions.ensure_session_owner(user_id, message.session_id)
-        await self.sessions.acquire_generation_lock(
-            user_id=user_id,
-            session_id=message.session_id,
-            generation_id=generation_id,
-        )
-
-        try:
-            return await self._generate_response_locked(
-                user_id=user_id,
-                message=message,
-            )
-
-        finally:
-            await self.sessions.release_generation_lock(
-                user_id=user_id,
-                session_id=message.session_id,
-                generation_id=generation_id,
-            )
-
     async def stream_response(
         self,
         user_id: UUID,
