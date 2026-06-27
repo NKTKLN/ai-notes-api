@@ -20,6 +20,7 @@ from ai_notes_api.schemas import (
 )
 from ai_notes_api.services.chat_session import ChatSessionService
 from ai_notes_api.services.document_chunk import DocumentChunkService
+from ai_notes_api.services.llm_context import LLMContextBuilder
 from ai_notes_api.services.llm_service import LLMService
 from ai_notes_api.services.message import MessageService
 from ai_notes_api.services.note import NoteService
@@ -289,13 +290,18 @@ def _build_service() -> tuple[FakeLLMClient, FakeMessageService, LLMService]:
     embeddings = FakeEmbeddingClient()
     chunks = FakeDocumentChunkService()
 
+    context_builder = LLMContextBuilder(
+        embeddings=cast(EmbeddingClient, embeddings),
+        message_service=cast(MessageService, messages),
+        chunk_service=cast(DocumentChunkService, chunks),
+    )
+
     service = LLMService(
         client=cast(LLMClient, client),
-        embeddings=cast(EmbeddingClient, embeddings),
         note_service=cast(NoteService, notes),
         session_service=cast(ChatSessionService, sessions),
         message_service=cast(MessageService, messages),
-        document_chunks_service=cast(DocumentChunkService, chunks),
+        context_builder=context_builder,
     )
 
     return client, messages, service
