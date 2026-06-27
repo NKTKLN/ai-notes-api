@@ -11,7 +11,6 @@ from ai_notes_api.schemas.chat_session import (
     ChatSessionResponseSchema,
     ChatSessionUpdateSchema,
 )
-from ai_notes_api.schemas.chunk import DocumentChunkRead
 from ai_notes_api.schemas.completion import ChatCompletionResponseSchema
 from ai_notes_api.schemas.document import (
     DocumentDownloadUrlResponse,
@@ -77,5 +76,4 @@ __all__ = [
     "DocumentResponseSchema",
     "DocumentListResponse",
     "DocumentDownloadUrlResponse",
-    "DocumentChunkRead",
 ]
