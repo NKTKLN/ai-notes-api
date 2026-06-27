@@ -11,10 +11,11 @@ from loguru import logger
 from ai_notes_api.db.session import worker_session
 from ai_notes_api.exceptions import GenerationMessageMissingError
 from ai_notes_api.integrations import openai_client
-from ai_notes_api.llm import LLMClient
+from ai_notes_api.llm import EmbeddingClient, LLMClient
 from ai_notes_api.repositories import (
     ChatMemoryRepository,
     ChatSessionRepository,
+    DocumentChunkRepository,
     GenerationJobRepository,
     MessageRepository,
     NoteRepository,
@@ -23,6 +24,7 @@ from ai_notes_api.schemas.completion import ChatCompletionResponseSchema
 from ai_notes_api.schemas.message import UserMessageCreateSchema
 from ai_notes_api.services import (
     ChatSessionService,
+    DocumentChunkService,
     GenerationJobService,
     LLMService,
     MessageService,
@@ -70,6 +72,7 @@ async def _run_generation_job(job_id: UUID) -> None:
         GenerationNotFoundError: If no generation job with the given identifier exists.
     """
     llm_client = LLMClient(openai_client)
+    embeddings = EmbeddingClient(openai_client)
 
     async with worker_session() as session:
         notes_repository = NoteRepository(session)
@@ -77,6 +80,7 @@ async def _run_generation_job(job_id: UUID) -> None:
         sessions_repository = ChatSessionRepository(session)
         memories_repository = ChatMemoryRepository(session)
         generation_repository = GenerationJobRepository(session)
+        chunks_repository = DocumentChunkRepository(session)
 
         notes_service = NoteService(notes_repository)
         messages_service = MessageService(
@@ -91,6 +95,7 @@ async def _run_generation_job(job_id: UUID) -> None:
             generation_repository=generation_repository,
             session_service=sessions_service,
         )
+        chunks_service = DocumentChunkService(chunk_repository=chunks_repository)
 
         generation = await generation_service.get_by_id(job_id)
 
@@ -101,9 +106,11 @@ async def _run_generation_job(job_id: UUID) -> None:
 
         service = LLMService(
             client=llm_client,
+            embeddings=embeddings,
             note_service=notes_service,
             session_service=sessions_service,
             message_service=messages_service,
+            document_chunks_service=chunks_service,
         )
 
         try:
