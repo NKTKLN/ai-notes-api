@@ -26,6 +26,7 @@ from ai_notes_api.services import (
     ChatSessionService,
     DocumentChunkService,
     GenerationJobService,
+    LLMContextBuilder,
     LLMService,
     MessageService,
     NoteService,
@@ -96,6 +97,11 @@ async def _run_generation_job(job_id: UUID) -> None:
             session_service=sessions_service,
         )
         chunks_service = DocumentChunkService(chunk_repository=chunks_repository)
+        context_builder = LLMContextBuilder(
+            embeddings=embeddings,
+            message_service=messages_service,
+            chunk_service=chunks_service,
+        )
 
         generation = await generation_service.get_by_id(job_id)
 
@@ -106,11 +112,10 @@ async def _run_generation_job(job_id: UUID) -> None:
 
         service = LLMService(
             client=llm_client,
-            embeddings=embeddings,
             note_service=notes_service,
             session_service=sessions_service,
             message_service=messages_service,
-            document_chunks_service=chunks_service,
+            context_builder=context_builder,
         )
 
         try:

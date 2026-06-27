@@ -9,7 +9,6 @@ from uuid import UUID, uuid4
 
 from ai_notes_api.db.models import Message
 from ai_notes_api.llm import LLMClient
-from ai_notes_api.llm.embeddings import EmbeddingClient
 from ai_notes_api.llm.schemas import LLMResponse, LLMStreamEvent
 from ai_notes_api.schemas import (
     AssistantMessageCreateSchema,
@@ -17,7 +16,6 @@ from ai_notes_api.schemas import (
     UserMessageCreateSchema,
 )
 from ai_notes_api.services.chat_session import ChatSessionService
-from ai_notes_api.services.document_chunk import DocumentChunkService
 from ai_notes_api.services.llm_context import LLMContextBuilder
 from ai_notes_api.services.message import MessageService
 from ai_notes_api.services.note import NoteService
@@ -31,15 +29,12 @@ class LLMService:
 
     Args:
         client (LLMClient): LLM client used to generate model responses.
-        embeddings (EmbeddingClient): Embedding client used to embed questions
-            for document chunk retrieval.
         note_service (NoteService): Note service used by LLM tools.
         session_service (ChatSessionService): Chat session service used to
             validate access and manage generation locks.
-        message_service (MessageService): Message service used to persist chat
-            messages.
-        document_chunks_service (DocumentChunkService): Document chunk service
-            used to retrieve grounding context via vector search.
+        message_service (MessageService): Message service used to persist chat messages.
+        context_builder (LLMContextBuilder): Context builder used to assemble
+            prompt messages from chat history and retrieved document chunks.
 
     Attributes:
         SYSTEM_PROMPT (ClassVar[str]): System prompt prepended to the chat context.
@@ -50,36 +45,29 @@ class LLMService:
         "Use note-management tools only when the user clearly asks for it."
     )
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         client: LLMClient,
-        embeddings: EmbeddingClient,
         note_service: NoteService,
         session_service: ChatSessionService,
         message_service: MessageService,
-        document_chunks_service: DocumentChunkService,
+        context_builder: LLMContextBuilder,
     ) -> None:
         """Initialize the LLM service.
 
         Args:
             client (LLMClient): LLM client used by the service.
-            embeddings (EmbeddingClient): Embedding client used by the service.
             note_service (NoteService): Note service used by LLM tools.
             session_service (ChatSessionService): Chat session service used by
                 the service.
             message_service (MessageService): Message service used by the service.
-            document_chunks_service (DocumentChunkService): Document chunk service
-                used by the service.
+            context_builder (LLMContextBuilder): Context builder used by the service.
         """
         self.client = client
         self.notes = note_service
         self.sessions = session_service
         self.messages = message_service
-        self.context = LLMContextBuilder(
-            embeddings=embeddings,
-            message_service=message_service,
-            chunk_service=document_chunks_service,
-        )
+        self.context = context_builder
 
     def _get_value(self, source: Any, name: str) -> Any:
         """Return a value from an object or dictionary.
@@ -183,9 +171,6 @@ class LLMService:
         message: UserMessageCreateSchema,
     ) -> ChatCompletionResponseSchema:
         """Generate and persist an assistant response under an existing lock.
-
-        This method assumes that the chat session generation lock has already been
-        acquired by the caller.
 
         Args:
             user_id (UUID): Unique identifier of the user requesting the response.
