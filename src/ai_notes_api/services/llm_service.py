@@ -8,16 +8,19 @@ from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
 from ai_notes_api.core import settings
-from ai_notes_api.db.models import Message
+from ai_notes_api.db.models import DocumentChunk, Message
 from ai_notes_api.llm import LLMClient
+from ai_notes_api.llm.embeddings import EmbeddingClient
 from ai_notes_api.llm.schemas import LLMMessage, LLMResponse, LLMStreamEvent
 from ai_notes_api.memory import PromptBuilder
+from ai_notes_api.rag.prompt_builder import RAGPromptBuilder
 from ai_notes_api.schemas import (
     AssistantMessageCreateSchema,
     ChatCompletionResponseSchema,
     UserMessageCreateSchema,
 )
 from ai_notes_api.services.chat_session import ChatSessionService
+from ai_notes_api.services.document_chunk import DocumentChunkService
 from ai_notes_api.services.message import MessageService
 from ai_notes_api.services.note import NoteService
 from ai_notes_api.tools import build_registry
@@ -29,11 +32,15 @@ class LLMService:
 
     Args:
         client (LLMClient): LLM client used to generate model responses.
+        embeddings (EmbeddingClient): Embedding client used to embed questions
+            for document chunk retrieval.
         note_service (NoteService): Note service used by LLM tools.
         session_service (ChatSessionService): Chat session service used to
             validate access and manage generation locks.
         message_service (MessageService): Message service used to persist chat
             messages.
+        document_chunks_service (DocumentChunkService): Document chunk service
+            used to retrieve grounding context via vector search.
 
     Attributes:
         SYSTEM_PROMPT (ClassVar[str]): System prompt prepended to the chat context.
@@ -42,29 +49,35 @@ class LLMService:
     SYSTEM_PROMPT: ClassVar[str] = (
         "Respond in the user's language. Do not invent facts about the user. "
         "Use note-management tools only when the user clearly asks for it."
-        # "Do not invent facts from documents: if data is missing, say so.\n"
     )
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         client: LLMClient,
+        embeddings: EmbeddingClient,
         note_service: NoteService,
         session_service: ChatSessionService,
         message_service: MessageService,
+        document_chunks_service: DocumentChunkService,
     ) -> None:
         """Initialize the LLM service.
 
         Args:
             client (LLMClient): LLM client used by the service.
+            embeddings (EmbeddingClient): Embedding client used by the service.
             note_service (NoteService): Note service used by LLM tools.
             session_service (ChatSessionService): Chat session service used by
                 the service.
             message_service (MessageService): Message service used by the service.
+            document_chunks_service (DocumentChunkService): Document chunk service
+                used by the service.
         """
         self.client = client
+        self.embeddings = embeddings
         self.notes = note_service
         self.sessions = session_service
         self.messages = message_service
+        self.chunks = document_chunks_service
 
     def _get_value(self, source: Any, name: str) -> Any:
         """Return a value from an object or dictionary.
@@ -158,6 +171,70 @@ class LLMService:
 
         return context_messages
 
+    async def _retrieve_chunks(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        query_embedding: list[float],
+        top_k: int = 5,
+    ) -> list[DocumentChunk]:
+        """Retrieve the most similar document chunks for a query embedding.
+
+        Args:
+            user_id (UUID): Unique identifier of the user who owns the chunks.
+            session_id (UUID): Unique chat session identifier.
+            query_embedding (list[float]): Query vector embedding to compare
+                chunk embeddings against.
+            top_k (int): Maximum number of chunks to return. Defaults to 5.
+
+        Returns:
+            list[DocumentChunk]: Matching non-deleted document chunks ordered by
+            cosine distance to the query embedding in ascending order.
+        """
+        return await self.chunks.vector_search(
+            user_id=user_id,
+            session_id=session_id,
+            query_embedding=query_embedding,
+            top_k=top_k,
+        )
+
+    async def _build_prompt(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        question: str,
+    ) -> list[dict[str, Any]]:
+        """Build LLM input messages with conversation and retrieval context.
+
+        Args:
+            user_id (UUID): Unique identifier of the user requesting the response.
+            session_id (UUID): Unique chat session identifier.
+            question (str): User question used to embed and retrieve relevant
+                document chunks.
+
+        Returns:
+            list[dict[str, Any]]: Serialized LLM input messages combining
+            long-term memory context and retrieved document chunks.
+        """
+        context_messages = await self._get_context_messages(
+            user_id=user_id,
+            session_id=session_id,
+        )
+
+        question_embedding = await self.embeddings.create_embedding([question])
+
+        retrieved_chunks = await self._retrieve_chunks(
+            user_id=user_id,
+            session_id=session_id,
+            query_embedding=question_embedding[0],
+        )
+
+        memory_data = PromptBuilder.build(context_messages[:-1])
+
+        rag_data = RAGPromptBuilder.build(question, retrieved_chunks)
+
+        return [*memory_data, *rag_data]
+
     async def _generate_response_locked(
         self,
         user_id: UUID,
@@ -186,12 +263,11 @@ class LLMService:
             data=message,
         )
 
-        context_messages = await self._get_context_messages(
+        input_data = await self._build_prompt(
             user_id=user_id,
             session_id=message.session_id,
+            question=message.content,
         )
-
-        input_data = PromptBuilder.build(context_messages=context_messages)
 
         while True:
             llm_response = await self.client.create_response(
@@ -353,12 +429,11 @@ class LLMService:
                 data=message,
             )
 
-            context_messages = await self._get_context_messages(
+            input_data = await self._build_prompt(
                 user_id=user_id,
                 session_id=message.session_id,
+                question=message.content,
             )
-
-            input_data = PromptBuilder.build(context_messages=context_messages)
 
             llm_response: LLMResponse | None = None
 

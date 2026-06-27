@@ -9,15 +9,17 @@ from uuid import UUID
 import pytest
 
 from ai_notes_api.core import settings
-from ai_notes_api.db.models import Message, MessageRole
+from ai_notes_api.db.models import DocumentChunk, Message, MessageRole
 from ai_notes_api.exceptions import ChatSessionNotFoundError
 from ai_notes_api.llm import LLMClient
+from ai_notes_api.llm.embeddings import EmbeddingClient
 from ai_notes_api.llm.schemas import LLMResponse, LLMStreamEvent, LLMToolCall
 from ai_notes_api.schemas import (
     AssistantMessageCreateSchema,
     UserMessageCreateSchema,
 )
 from ai_notes_api.services.chat_session import ChatSessionService
+from ai_notes_api.services.document_chunk import DocumentChunkService
 from ai_notes_api.services.llm_service import LLMService
 from ai_notes_api.services.message import MessageService
 from ai_notes_api.services.note import NoteService
@@ -25,6 +27,8 @@ from ai_notes_api.services.note import NoteService
 TEST_USER_ID = UUID("11111111-1111-1111-1111-111111111111")
 TEST_SESSION_ID = UUID("22222222-2222-2222-2222-222222222222")
 TEST_MESSAGE_ID = UUID("33333333-3333-3333-3333-333333333333")
+TEST_DOCUMENT_ID = UUID("44444444-4444-4444-4444-444444444444")
+TEST_CHUNK_ID = UUID("55555555-5555-5555-5555-555555555555")
 
 
 @pytest.fixture(autouse=True)
@@ -203,6 +207,42 @@ class FakeLLMClient:
             yield event
 
 
+class FakeEmbeddingClient:
+    """Fake embedding client recording embedded texts for LLM service testing."""
+
+    def __init__(self) -> None:
+        """Initialize the fake embedding client."""
+        self.embedded_texts: list[str] | None = None
+        self.embedding: list[float] = [0.1, 0.2, 0.3]
+
+    async def create_embedding(self, texts: list[str]) -> list[list[float]]:
+        """Record the texts and return one embedding vector per text."""
+        self.embedded_texts = texts
+        return [self.embedding for _ in texts]
+
+
+class FakeDocumentChunkService:
+    """Fake document chunk service recording vector searches for LLM testing."""
+
+    def __init__(self) -> None:
+        """Initialize the fake document chunk service."""
+        self.chunks: list[DocumentChunk] = []
+        self.search_query_embedding: list[float] | None = None
+        self.search_top_k: int | None = None
+
+    async def vector_search(
+        self,
+        user_id: UUID,  # noqa: ARG002
+        session_id: UUID,  # noqa: ARG002
+        query_embedding: list[float],
+        top_k: int = 5,
+    ) -> list[DocumentChunk]:
+        """Record the search parameters and return the configured chunks."""
+        self.search_query_embedding = query_embedding
+        self.search_top_k = top_k
+        return self.chunks
+
+
 class FakeNoteService:
     """Fake note service used to build the LLM tool registry."""
 
@@ -237,17 +277,25 @@ class FakeToolRegistry:
 
 
 def _build_service() -> tuple[FakeLLMClient, FakeMessageService, LLMService]:
-    """Build an LLM service wired with fakes."""
+    """Build an LLM service wired with fakes.
+
+    The embedding client and document chunk service fakes are reachable through
+    ``service.embeddings`` and ``service.chunks`` for assertions.
+    """
     client = FakeLLMClient()
     messages = FakeMessageService()
     sessions = FakeChatSessionService()
     notes = FakeNoteService()
+    embeddings = FakeEmbeddingClient()
+    chunks = FakeDocumentChunkService()
 
     service = LLMService(
         client=cast(LLMClient, client),
+        embeddings=cast(EmbeddingClient, embeddings),
         note_service=cast(NoteService, notes),
         session_service=cast(ChatSessionService, sessions),
         message_service=cast(MessageService, messages),
+        document_chunks_service=cast(DocumentChunkService, chunks),
     )
 
     return client, messages, service
@@ -309,13 +357,21 @@ async def test_generate_response_builds_prompt_from_context() -> None:
     """Test that the prompt is built from context messages and passed to client."""
     client, messages, service = _build_service()
     client.response = LLMResponse(text="Answer", raw=_raw_metadata())
+    # The last context message is the current user turn; the prompt builder
+    # drops it from the memory context and re-adds it via the RAG question.
     messages.context_messages = [
         Message(
             id=TEST_MESSAGE_ID,
             session_id=TEST_SESSION_ID,
             content="Earlier message",
             role=MessageRole.USER,
-        )
+        ),
+        Message(
+            id=TEST_MESSAGE_ID,
+            session_id=TEST_SESSION_ID,
+            content="Hello",
+            role=MessageRole.USER,
+        ),
     ]
 
     await service.generate_response(
@@ -545,3 +601,88 @@ async def test_stream_response_executes_tool_calls_then_finishes() -> None:
     assert [event.type for event in events] == ["final", "delta", "final"]
     assert len(messages.created_assistant_data) == 1
     assert messages.created_assistant_data[0].content == "Done"
+
+
+@pytest.mark.asyncio
+async def test_generate_response_embeds_question_for_retrieval() -> None:
+    """Test that the question is embedded and used for chunk vector search."""
+    client, _messages, service = _build_service()
+    client.response = LLMResponse(text="Answer", raw=_raw_metadata())
+
+    embeddings = cast(FakeEmbeddingClient, service.embeddings)
+    chunks = cast(FakeDocumentChunkService, service.chunks)
+
+    await service.generate_response(
+        user_id=TEST_USER_ID,
+        message=_user_message(content="What is RAG?"),
+    )
+
+    assert embeddings.embedded_texts == ["What is RAG?"]
+    assert chunks.search_query_embedding == embeddings.embedding
+    assert chunks.search_top_k == 5
+
+
+@pytest.mark.asyncio
+async def test_generate_response_includes_retrieved_chunks_in_prompt() -> None:
+    """Test that retrieved document chunks are injected into the LLM prompt."""
+    client, _messages, service = _build_service()
+    client.response = LLMResponse(text="Answer", raw=_raw_metadata())
+
+    chunks = cast(FakeDocumentChunkService, service.chunks)
+    chunks.chunks = [
+        DocumentChunk(
+            id=TEST_CHUNK_ID,
+            document_id=TEST_DOCUMENT_ID,
+            content="Relevant chunk content",
+        )
+    ]
+
+    await service.generate_response(
+        user_id=TEST_USER_ID,
+        message=_user_message(),
+    )
+
+    assert isinstance(client.create_input, list)
+    assert any(
+        "Relevant chunk content" in str(item.get("content", ""))
+        for item in client.create_input
+    )
+
+
+@pytest.mark.asyncio
+async def test_generate_response_includes_question_in_prompt() -> None:
+    """Test that the user question is included as a prompt message."""
+    client, _messages, service = _build_service()
+    client.response = LLMResponse(text="Answer", raw=_raw_metadata())
+
+    await service.generate_response(
+        user_id=TEST_USER_ID,
+        message=_user_message(content="My question"),
+    )
+
+    assert isinstance(client.create_input, list)
+    assert any(item.get("content") == "My question" for item in client.create_input)
+
+
+@pytest.mark.asyncio
+async def test_stream_response_embeds_question_for_retrieval() -> None:
+    """Test that streaming embeds the question and runs chunk vector search."""
+    client, _messages, service = _build_service()
+    client.events = [
+        LLMStreamEvent(
+            type="final",
+            response=LLMResponse(text="Hi", raw=_raw_metadata()),
+        ),
+    ]
+
+    embeddings = cast(FakeEmbeddingClient, service.embeddings)
+    chunks = cast(FakeDocumentChunkService, service.chunks)
+
+    async for _ in service.stream_response(
+        user_id=TEST_USER_ID,
+        message=_user_message(content="Stream question?"),
+    ):
+        pass
+
+    assert embeddings.embedded_texts == ["Stream question?"]
+    assert chunks.search_query_embedding == embeddings.embedding

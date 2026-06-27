@@ -7,6 +7,7 @@ from ai_notes_api.services.auth import AuthService
 from ai_notes_api.services.chat_memory import ChatMemoryService
 from ai_notes_api.services.chat_session import ChatSessionService
 from ai_notes_api.services.document import DocumentService
+from ai_notes_api.services.document_chunk import DocumentChunkService
 from ai_notes_api.services.document_processing import DocumentProcessingService
 from ai_notes_api.services.document_processing_job import DocumentProcessingJobService
 from ai_notes_api.services.generation_job import GenerationJobService
@@ -23,6 +24,7 @@ __all__ = [
     "LLMService",
     "ChatMemoryService",
     "DocumentService",
+    "DocumentChunkService",
     "DocumentProcessingService",
     "DocumentProcessingJobService",
 ]

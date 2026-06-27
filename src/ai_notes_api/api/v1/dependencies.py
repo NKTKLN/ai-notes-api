@@ -16,10 +16,11 @@ from ai_notes_api.db.models import User
 from ai_notes_api.db.session import get_db
 from ai_notes_api.exceptions import InvalidTokenError
 from ai_notes_api.integrations import openai_client
-from ai_notes_api.llm import LLMClient
+from ai_notes_api.llm import EmbeddingClient, LLMClient
 from ai_notes_api.repositories import (
     ChatMemoryRepository,
     ChatSessionRepository,
+    DocumentChunkRepository,
     DocumentProcessingJobRepository,
     DocumentRepository,
     GenerationJobRepository,
@@ -31,6 +32,7 @@ from ai_notes_api.services import (
     AuthService,
     ChatMemoryService,
     ChatSessionService,
+    DocumentChunkService,
     DocumentProcessingJobService,
     DocumentService,
     GenerationJobService,
@@ -183,10 +185,12 @@ def get_llm_service(
         LLMService: Configured LLM service instance.
     """
     client = LLMClient(openai_client)
+    embeddings = EmbeddingClient(openai_client)
     notes = NoteRepository(session)
     messages = MessageRepository(session)
     sessions = ChatSessionRepository(session)
     memories = ChatMemoryRepository(session)
+    chunks = DocumentChunkRepository(session)
     notes_service = NoteService(notes)
     sessions_service = ChatSessionService(
         session_repository=sessions,
@@ -196,12 +200,15 @@ def get_llm_service(
         message_repository=messages,
         session_repository=sessions,
     )
+    chunks_service = DocumentChunkService(chunk_repository=chunks)
 
     return LLMService(
         client=client,
+        embeddings=embeddings,
         note_service=notes_service,
         session_service=sessions_service,
         message_service=messages_service,
+        document_chunks_service=chunks_service,
     )
 
 
