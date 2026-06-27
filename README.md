@@ -36,6 +36,7 @@ Runtime services:
 * [PostgreSQL](https://www.postgresql.org/) - primary data store
 * [Redis](https://redis.io/) - Celery broker and result backend
 * [Celery](https://docs.celeryq.dev/) - background worker for async LLM generation jobs and chat memory updates
+* [MinIO](https://min.io/) - S3-compatible object storage for uploaded documents
 
 ## 📌 API endpoints
 
