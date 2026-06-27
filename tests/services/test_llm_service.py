@@ -280,7 +280,7 @@ def _build_service() -> tuple[FakeLLMClient, FakeMessageService, LLMService]:
     """Build an LLM service wired with fakes.
 
     The embedding client and document chunk service fakes are reachable through
-    ``service.embeddings`` and ``service.chunks`` for assertions.
+    ``service.context.embeddings`` and ``service.context.chunks`` for assertions.
     """
     client = FakeLLMClient()
     messages = FakeMessageService()
@@ -357,21 +357,15 @@ async def test_generate_response_builds_prompt_from_context() -> None:
     """Test that the prompt is built from context messages and passed to client."""
     client, messages, service = _build_service()
     client.response = LLMResponse(text="Answer", raw=_raw_metadata())
-    # The last context message is the current user turn; the prompt builder
-    # drops it from the memory context and re-adds it via the RAG question.
+    # Context is fetched before the current turn is persisted, so it holds only
+    # prior messages and is passed to the prompt builder as-is.
     messages.context_messages = [
         Message(
             id=TEST_MESSAGE_ID,
             session_id=TEST_SESSION_ID,
             content="Earlier message",
             role=MessageRole.USER,
-        ),
-        Message(
-            id=TEST_MESSAGE_ID,
-            session_id=TEST_SESSION_ID,
-            content="Hello",
-            role=MessageRole.USER,
-        ),
+        )
     ]
 
     await service.generate_response(
@@ -609,8 +603,8 @@ async def test_generate_response_embeds_question_for_retrieval() -> None:
     client, _messages, service = _build_service()
     client.response = LLMResponse(text="Answer", raw=_raw_metadata())
 
-    embeddings = cast(FakeEmbeddingClient, service.embeddings)
-    chunks = cast(FakeDocumentChunkService, service.chunks)
+    embeddings = cast(FakeEmbeddingClient, service.context.embeddings)
+    chunks = cast(FakeDocumentChunkService, service.context.chunks)
 
     await service.generate_response(
         user_id=TEST_USER_ID,
@@ -628,7 +622,7 @@ async def test_generate_response_includes_retrieved_chunks_in_prompt() -> None:
     client, _messages, service = _build_service()
     client.response = LLMResponse(text="Answer", raw=_raw_metadata())
 
-    chunks = cast(FakeDocumentChunkService, service.chunks)
+    chunks = cast(FakeDocumentChunkService, service.context.chunks)
     chunks.chunks = [
         DocumentChunk(
             id=TEST_CHUNK_ID,
@@ -675,8 +669,8 @@ async def test_stream_response_embeds_question_for_retrieval() -> None:
         ),
     ]
 
-    embeddings = cast(FakeEmbeddingClient, service.embeddings)
-    chunks = cast(FakeDocumentChunkService, service.chunks)
+    embeddings = cast(FakeEmbeddingClient, service.context.embeddings)
+    chunks = cast(FakeDocumentChunkService, service.context.chunks)
 
     async for _ in service.stream_response(
         user_id=TEST_USER_ID,
