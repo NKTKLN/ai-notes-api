@@ -15,6 +15,71 @@ The assistant is agentic: during chat completions it can call a built-in note to
 
 Chat sessions are also document-aware: uploaded documents are stored in S3-compatible storage and processed in the background (text extraction, chunking, and embedding generation), then retrieved as grounding context through pgvector similarity search to power retrieval-augmented generation (RAG).
 
+## 🧭 Architecture
+
+High-level overview of how a request flows through the application:
+
+```mermaid
+flowchart TD
+    Client([Client])
+
+    subgraph API["FastAPI · api/v1"]
+        Routes["Auth · Notes · Sessions · Messages<br/>Completions · Documents · Jobs"]
+    end
+
+    subgraph Services["Service layer"]
+        LLMSvc["LLMService"]
+        CtxBuilder["LLMContextBuilder"]
+        DocSvc["DocumentService"]
+        ChunkSvc["DocumentChunkService"]
+        MemSvc["ChatMemoryService"]
+        OtherSvc["Auth · Note · Session · Message"]
+    end
+
+    subgraph Workers["Celery workers"]
+        GenTask["Generation job"]
+        ProcTask["Document processing"]
+        MemTask["Memory update"]
+    end
+
+    subgraph Infra["Data & external services"]
+        PG[("PostgreSQL + pgvector")]
+        Redis[("Redis")]
+        S3[("S3 storage")]
+        OpenAI[["OpenAI API"]]
+    end
+
+    Client --> Routes
+    Routes --> Services
+    OtherSvc -->|repositories| PG
+
+    LLMSvc --> CtxBuilder
+    CtxBuilder -->|embed question| OpenAI
+    CtxBuilder -->|vector search| ChunkSvc
+    ChunkSvc --> PG
+    LLMSvc -->|chat + agentic tools| OpenAI
+    LLMSvc -->|persist messages| PG
+
+    DocSvc -->|store file| S3
+    DocSvc -->|persist metadata| PG
+
+    Routes -.->|enqueue jobs| Redis
+    LLMSvc -.->|enqueue summary| Redis
+    DocSvc -.->|enqueue processing| Redis
+
+    Redis --> GenTask
+    Redis --> ProcTask
+    Redis --> MemTask
+
+    GenTask --> LLMSvc
+    ProcTask -->|read file| S3
+    ProcTask -->|extract · chunk · embed| OpenAI
+    ProcTask -->|persist chunks| PG
+    MemTask --> MemSvc
+    MemTask -->|summarize · extract facts| OpenAI
+    MemSvc --> PG
+```
+
 ## 📦 Dependencies
 
 * [Python 3.13+](https://www.python.org/downloads/)
