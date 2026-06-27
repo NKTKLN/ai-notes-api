@@ -13,6 +13,7 @@ from ai_notes_api.llm.embeddings import EmbeddingClient
 from ai_notes_api.llm.schemas import LLMMessage
 from ai_notes_api.memory import PromptBuilder
 from ai_notes_api.rag.prompt_builder import RAGPromptBuilder
+from ai_notes_api.services.chat_memory import ChatMemoryService
 from ai_notes_api.services.document_chunk import DocumentChunkService
 from ai_notes_api.services.message import MessageService
 
@@ -27,6 +28,8 @@ class LLMContextBuilder:
             chat history.
         chunk_service (DocumentChunkService): Document chunk service used to
             retrieve grounding context via vector search.
+        memory_service (ChatMemoryService): Chat memory service used to load
+            long-term memory facts and summary for personalization.
     """
 
     def __init__(
@@ -34,6 +37,7 @@ class LLMContextBuilder:
         embeddings: EmbeddingClient,
         message_service: MessageService,
         chunk_service: DocumentChunkService,
+        memory_service: ChatMemoryService,
     ) -> None:
         """Initialize the LLM context builder.
 
@@ -42,10 +46,13 @@ class LLMContextBuilder:
             message_service (MessageService): Message service used by the builder.
             chunk_service (DocumentChunkService): Document chunk service used by
                 the builder.
+            memory_service (ChatMemoryService): Chat memory service used by the
+                builder.
         """
         self.embeddings = embeddings
         self.messages = message_service
         self.chunks = chunk_service
+        self.memories = memory_service
 
     async def _get_context_messages(
         self,
@@ -130,7 +137,16 @@ class LLMContextBuilder:
             query_embedding=question_embedding[0],
         )
 
-        memory_data = PromptBuilder.build(context_messages)
+        memory = await self.memories.get_by_session_id(
+            user_id=user_id,
+            session_id=session_id,
+        )
+
+        memory_data = PromptBuilder.build(
+            context_messages,
+            facts=memory.facts,
+            summary=memory.summary,
+        )
         rag_data = RAGPromptBuilder.build(question, retrieved_chunks)
 
         return [*memory_data, *rag_data]

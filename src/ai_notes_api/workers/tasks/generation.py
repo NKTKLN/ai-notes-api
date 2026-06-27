@@ -23,6 +23,7 @@ from ai_notes_api.repositories import (
 from ai_notes_api.schemas.completion import ChatCompletionResponseSchema
 from ai_notes_api.schemas.message import UserMessageCreateSchema
 from ai_notes_api.services import (
+    ChatMemoryService,
     ChatSessionService,
     DocumentChunkService,
     GenerationJobService,
@@ -97,10 +98,12 @@ async def _run_generation_job(job_id: UUID) -> None:
             session_service=sessions_service,
         )
         chunks_service = DocumentChunkService(chunk_repository=chunks_repository)
+        memory_service = ChatMemoryService(memories_repository=memories_repository)
         context_builder = LLMContextBuilder(
             embeddings=embeddings,
             message_service=messages_service,
             chunk_service=chunks_service,
+            memory_service=memory_service,
         )
 
         generation = await generation_service.get_by_id(job_id)

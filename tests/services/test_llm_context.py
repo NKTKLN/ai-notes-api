@@ -6,8 +6,9 @@ from uuid import UUID
 import pytest
 
 from ai_notes_api.core import settings
-from ai_notes_api.db.models import DocumentChunk, Message, MessageRole
+from ai_notes_api.db.models import ChatMemory, DocumentChunk, Message, MessageRole
 from ai_notes_api.llm.embeddings import EmbeddingClient
+from ai_notes_api.services.chat_memory import ChatMemoryService
 from ai_notes_api.services.document_chunk import DocumentChunkService
 from ai_notes_api.services.llm_context import LLMContextBuilder
 from ai_notes_api.services.message import MessageService
@@ -71,24 +72,47 @@ class FakeDocumentChunkService:
         return self.chunks
 
 
+class FakeChatMemoryService:
+    """Fake chat memory service returning a preconfigured chat memory."""
+
+    def __init__(self) -> None:
+        """Initialize the fake chat memory service."""
+        self.memory = ChatMemory(
+            session_id=TEST_SESSION_ID,
+            summary="",
+            facts=[],
+        )
+
+    async def get_by_session_id(
+        self,
+        user_id: UUID,  # noqa: ARG002
+        session_id: UUID,  # noqa: ARG002
+    ) -> ChatMemory:
+        """Return the configured chat memory."""
+        return self.memory
+
+
 def _build_builder() -> tuple[
     FakeEmbeddingClient,
     FakeMessageService,
     FakeDocumentChunkService,
+    FakeChatMemoryService,
     LLMContextBuilder,
 ]:
     """Build an LLM context builder wired with fakes."""
     embeddings = FakeEmbeddingClient()
     messages = FakeMessageService()
     chunks = FakeDocumentChunkService()
+    memories = FakeChatMemoryService()
 
     builder = LLMContextBuilder(
         embeddings=cast(EmbeddingClient, embeddings),
         message_service=cast(MessageService, messages),
         chunk_service=cast(DocumentChunkService, chunks),
+        memory_service=cast(ChatMemoryService, memories),
     )
 
-    return embeddings, messages, chunks, builder
+    return embeddings, messages, chunks, memories, builder
 
 
 def _message(content: str) -> Message:
@@ -104,7 +128,7 @@ def _message(content: str) -> Message:
 @pytest.mark.asyncio
 async def test_build_embeds_question_and_searches_chunks() -> None:
     """Test that the question is embedded and used for chunk vector search."""
-    embeddings, _messages, chunks, builder = _build_builder()
+    embeddings, _messages, chunks, _memories, builder = _build_builder()
 
     await builder.build(
         user_id=TEST_USER_ID,
@@ -123,7 +147,7 @@ async def test_build_includes_all_context_messages() -> None:
     The current turn is excluded by the caller (context is fetched before the
     turn is persisted), so the builder uses the context as-is.
     """
-    _embeddings, messages, _chunks, builder = _build_builder()
+    _embeddings, messages, _chunks, _memories, builder = _build_builder()
     messages.context_messages = [_message("First message"), _message("Second message")]
 
     result = await builder.build(
@@ -142,7 +166,7 @@ async def test_build_includes_all_context_messages() -> None:
 @pytest.mark.asyncio
 async def test_build_includes_chunks_and_question() -> None:
     """Test that retrieved chunks and the question are present in the prompt."""
-    _embeddings, _messages, chunks, builder = _build_builder()
+    _embeddings, _messages, chunks, _memories, builder = _build_builder()
     chunks.chunks = [
         DocumentChunk(document_id=TEST_DOCUMENT_ID, content="Relevant chunk"),
     ]
@@ -161,7 +185,7 @@ async def test_build_includes_chunks_and_question() -> None:
 @pytest.mark.asyncio
 async def test_build_uses_configured_context_limit() -> None:
     """Test that the configured context message limit is forwarded."""
-    _embeddings, messages, _chunks, builder = _build_builder()
+    _embeddings, messages, _chunks, _memories, builder = _build_builder()
 
     await builder.build(
         user_id=TEST_USER_ID,
@@ -170,3 +194,21 @@ async def test_build_uses_configured_context_limit() -> None:
     )
 
     assert messages.context_limit == settings.llm_context_messages_limit
+
+
+@pytest.mark.asyncio
+async def test_build_includes_memory_facts_and_summary() -> None:
+    """Test that stored memory facts and summary are added to the prompt."""
+    _embeddings, _messages, _chunks, memories, builder = _build_builder()
+    memories.memory.summary = "The user prefers concise answers."
+    memories.memory.facts = [{"key": "language", "value": "Python"}]
+
+    result = await builder.build(
+        user_id=TEST_USER_ID,
+        session_id=TEST_SESSION_ID,
+        question="My question",
+    )
+
+    contents = [str(item.get("content", "")) for item in result]
+    assert any("The user prefers concise answers." in content for content in contents)
+    assert any('"value": "Python"' in content for content in contents)

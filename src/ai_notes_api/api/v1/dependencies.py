@@ -202,10 +202,12 @@ def get_llm_service(
         session_repository=sessions,
     )
     chunks_service = DocumentChunkService(chunk_repository=chunks)
+    memory_service = ChatMemoryService(memories_repository=memories)
     context_builder = LLMContextBuilder(
         embeddings=embeddings,
         message_service=messages_service,
         chunk_service=chunks_service,
+        memory_service=memory_service,
     )
 
     return LLMService(
