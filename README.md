@@ -279,6 +279,17 @@ erDiagram
         datetime deleted_at "null"
     }
 
+    document_processing_jobs {
+        uuid id PK
+        uuid document_id FK
+        enum status "document_processing_job_status"
+        datetime started_at "null"
+        datetime finished_at "null"
+        text error "null"
+        datetime created_at
+        datetime updated_at
+    }
+
     document_chunks {
         uuid id PK
         uuid user_id FK
@@ -343,6 +354,7 @@ erDiagram
     messages ||--o| generation_jobs : "output of"
     messages ||--o| chat_memories : "last summarized"
 
+    documents ||--o{ document_processing_jobs : "processed by"
     documents ||--o{ document_chunks : "split into"
     documents ||--o{ rag_query_sources : "referenced by"
     document_chunks ||--o{ rag_query_sources : "referenced by"
