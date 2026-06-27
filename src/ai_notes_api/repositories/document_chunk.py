@@ -5,11 +5,10 @@ soft-deleting document chunks in the database.
 """
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from ai_notes_api.db.models import DocumentChunk
 from ai_notes_api.repositories.base import BaseRepository
@@ -90,34 +89,6 @@ class DocumentChunkRepository(BaseRepository):
 
         return document_chunk
 
-    async def get_list_for_document(self, document_id: UUID) -> list[DocumentChunk]:
-        """Return document chunks for a document.
-
-        Args:
-            document_id (UUID): Unique document identifier.
-
-        Returns:
-            list[DocumentChunk]: List of matching non-deleted document chunks
-            ordered by chunk index in ascending order.
-        """
-        stmt = (
-            select(DocumentChunk)
-            .where(DocumentChunk.document_id == document_id)
-            .where(DocumentChunk.deleted_at.is_(None))
-            .order_by(DocumentChunk.chunk_index.asc())
-        )
-
-        result = await self.session.execute(stmt)
-        document_chunks = list(result.scalars().all())
-
-        logger.debug(
-            "Document chunks list fetched: count={}, document_id={}",
-            len(document_chunks),
-            document_id,
-        )
-
-        return document_chunks
-
     async def vector_search_in_user_session(
         self,
         query_embedding: list[float],
@@ -179,23 +150,3 @@ class DocumentChunkRepository(BaseRepository):
         logger.info("Document chunk updated: id={}", document_chunk.id)
 
         return document_chunk
-
-    async def soft_delete_for_document(self, document_id: UUID) -> None:
-        """Soft-delete all document chunks of a document.
-
-        Sets the deletion timestamp for every non-deleted chunk of the given
-        document instead of removing rows from the database.
-
-        Args:
-            document_id (UUID): Unique document identifier.
-        """
-        await self.session.execute(
-            update(DocumentChunk)
-            .where(DocumentChunk.document_id == document_id)
-            .where(DocumentChunk.deleted_at.is_(None))
-            .values(deleted_at=datetime.now(UTC))
-        )
-
-        await self.session.flush()
-
-        logger.info("Document chunks soft-deleted: document_id={}", document_id)

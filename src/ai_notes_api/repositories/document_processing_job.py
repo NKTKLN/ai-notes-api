@@ -63,36 +63,6 @@ class DocumentProcessingJobRepository(BaseRepository):
 
         return processing_job
 
-    async def get_list_for_document(
-        self,
-        document_id: UUID,
-    ) -> list[DocumentProcessingJob]:
-        """Return processing jobs for a document.
-
-        Args:
-            document_id (UUID): Unique document identifier.
-
-        Returns:
-            list[DocumentProcessingJob]: List of matching processing jobs ordered
-            by creation date in descending order.
-        """
-        stmt = (
-            select(DocumentProcessingJob)
-            .where(DocumentProcessingJob.document_id == document_id)
-            .order_by(DocumentProcessingJob.created_at.desc())
-        )
-
-        result = await self.session.execute(stmt)
-        processing_jobs = list(result.scalars().all())
-
-        logger.debug(
-            "Document processing jobs list fetched: count={}, document_id={}",
-            len(processing_jobs),
-            document_id,
-        )
-
-        return processing_jobs
-
     async def update(
         self,
         processing_job: DocumentProcessingJob,

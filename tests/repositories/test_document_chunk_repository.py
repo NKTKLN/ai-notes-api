@@ -1,5 +1,6 @@
 """Tests for document chunk repository."""
 
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
@@ -258,65 +259,6 @@ async def test_get_by_id_chunk_not_found(async_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_list_for_document_orders_by_chunk_index_asc(
-    async_session: AsyncSession,
-    test_user: User,
-) -> None:
-    """Test that chunks list is ordered by chunk index in ascending order."""
-    repository = DocumentChunkRepository(session=async_session)
-    chat_session = await create_chat_session(async_session, user_id=test_user.id)
-    document = await create_document(
-        async_session,
-        user_id=test_user.id,
-        session_id=chat_session.id,
-    )
-
-    await repository.create_many(
-        [
-            create_chunk(
-                user_id=test_user.id,
-                session_id=chat_session.id,
-                document_id=document.id,
-                chunk_index=index,
-            )
-            for index in (2, 0, 1)
-        ]
-    )
-
-    chunks = await repository.get_list_for_document(document.id)
-
-    assert [chunk.chunk_index for chunk in chunks] == [0, 1, 2]
-
-
-@pytest.mark.asyncio
-async def test_get_list_for_document_excludes_soft_deleted(
-    async_session: AsyncSession,
-    test_user: User,
-) -> None:
-    """Test that chunks list ignores soft-deleted rows."""
-    repository = DocumentChunkRepository(session=async_session)
-    chat_session = await create_chat_session(async_session, user_id=test_user.id)
-    document = await create_document(
-        async_session,
-        user_id=test_user.id,
-        session_id=chat_session.id,
-    )
-
-    await repository.create(
-        create_chunk(
-            user_id=test_user.id,
-            session_id=chat_session.id,
-            document_id=document.id,
-        )
-    )
-    await repository.soft_delete_for_document(document.id)
-
-    chunks = await repository.get_list_for_document(document.id)
-
-    assert chunks == []
-
-
-@pytest.mark.asyncio
 async def test_search_in_user_session_orders_by_similarity(
     async_session: AsyncSession,
     test_user: User,
@@ -457,14 +399,15 @@ async def test_search_in_user_session_excludes_soft_deleted(
         session_id=chat_session.id,
     )
 
-    await repository.create(
+    chunk = await repository.create(
         create_chunk(
             user_id=test_user.id,
             session_id=chat_session.id,
             document_id=document.id,
         )
     )
-    await repository.soft_delete_for_document(document.id)
+    chunk.deleted_at = datetime.now(UTC)
+    await repository.update(chunk)
 
     results = await repository.vector_search_in_user_session(
         query_embedding=make_embedding(first=1.0),

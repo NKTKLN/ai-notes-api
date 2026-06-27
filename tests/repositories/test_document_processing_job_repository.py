@@ -1,6 +1,6 @@
 """Tests for document processing job repository."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
@@ -145,49 +145,6 @@ async def test_get_by_id_job_not_found(async_session: AsyncSession) -> None:
     job = await repository.get_by_id(uuid4())
 
     assert job is None
-
-
-@pytest.mark.asyncio
-async def test_get_list_for_document_orders_by_created_at_desc(
-    async_session: AsyncSession,
-    test_user: User,
-) -> None:
-    """Test that the jobs list is ordered by creation date in descending order."""
-    repository = DocumentProcessingJobRepository(session=async_session)
-    document = await create_document(async_session, user_id=test_user.id)
-
-    base = datetime.now(UTC)
-
-    await repository.create(
-        create_job(document_id=document.id, created_at=base),
-    )
-    await repository.create(
-        create_job(document_id=document.id, created_at=base + timedelta(seconds=1)),
-    )
-
-    jobs = await repository.get_list_for_document(document.id)
-
-    assert len(jobs) == 2
-    assert jobs[0].created_at > jobs[1].created_at
-
-
-@pytest.mark.asyncio
-async def test_get_list_for_document_scoped_to_document(
-    async_session: AsyncSession,
-    test_user: User,
-) -> None:
-    """Test that the jobs list is scoped to the requested document."""
-    repository = DocumentProcessingJobRepository(session=async_session)
-    document = await create_document(async_session, user_id=test_user.id)
-    other_document = await create_document(async_session, user_id=test_user.id)
-
-    owned = await repository.create(create_job(document_id=document.id))
-    await repository.create(create_job(document_id=other_document.id))
-
-    jobs = await repository.get_list_for_document(document.id)
-
-    assert len(jobs) == 1
-    assert jobs[0].id == owned.id
 
 
 @pytest.mark.asyncio
