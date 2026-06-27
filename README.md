@@ -56,6 +56,14 @@ Chat completion endpoints (authenticated):
 * `POST /api/v1/chat/completions/jobs` - enqueue an async LLM generation job (Celery)
 * `GET /api/v1/chat/completions/jobs/{job_id}` - get the status and result of a generation job
 
+Document endpoints (authenticated):
+
+* `POST /api/v1/chat/sessions/{session_id}/documents` - upload a document to a chat session
+* `GET /api/v1/chat/sessions/{session_id}/documents` - list documents in a chat session
+* `GET /api/v1/chat/sessions/{session_id}/documents/{document_id}` - get a document by ID
+* `GET /api/v1/chat/sessions/{session_id}/documents/{document_id}/download` - download a document by ID
+* `DELETE /api/v1/chat/sessions/{session_id}/documents/{document_id}` - delete a document by ID
+
 Health endpoint:
 
 * `GET /api/v1/health` - service health check
