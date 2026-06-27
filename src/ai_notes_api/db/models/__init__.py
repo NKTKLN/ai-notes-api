@@ -16,8 +16,6 @@ from ai_notes_api.db.models.document_processing_job import (
 from ai_notes_api.db.models.generation_job import GenerationJob, GenerationJobStatus
 from ai_notes_api.db.models.message import Message, MessageRole
 from ai_notes_api.db.models.note import ModelSource, Note
-from ai_notes_api.db.models.rag_query import RagQuery, RagQueryStatus
-from ai_notes_api.db.models.rag_query_source import RagQuerySource
 from ai_notes_api.db.models.user import User
 
 __all__ = [
@@ -37,9 +35,6 @@ __all__ = [
     "Document",
     "DocumentStatus",
     "DocumentChunk",
-    "RagQuery",
-    "RagQueryStatus",
-    "RagQuerySource",
     "DocumentProcessingJob",
     "DocumentProcessingJobStatus",
 ]

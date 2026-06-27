@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     from ai_notes_api.db.models.document_chunk import DocumentChunk
     from ai_notes_api.db.models.generation_job import GenerationJob
     from ai_notes_api.db.models.message import Message
-    from ai_notes_api.db.models.rag_query import RagQuery
     from ai_notes_api.db.models.user import User
 
 
@@ -57,8 +56,6 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
         documents (Mapped[list[Document]]): Documents that belong to the chat session.
         document_chunks (Mapped[list[DocumentChunk]]): Document chunks that
             belong to the chat session.
-        rag_queries (Mapped[list[RagQuery]]): RAG queries that belong to the
-            chat session.
     """
 
     __tablename__ = "chat_sessions"
@@ -132,11 +129,6 @@ class ChatSession(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     document_chunks: Mapped[list["DocumentChunk"]] = relationship(
-        back_populates="chat_session",
-        cascade="all, delete-orphan",
-    )
-
-    rag_queries: Mapped[list["RagQuery"]] = relationship(
         back_populates="chat_session",
         cascade="all, delete-orphan",
     )

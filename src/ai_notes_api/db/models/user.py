@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from ai_notes_api.db.models.document_chunk import DocumentChunk
     from ai_notes_api.db.models.generation_job import GenerationJob
     from ai_notes_api.db.models.note import Note
-    from ai_notes_api.db.models.rag_query import RagQuery
 
 
 class User(Base, TimestampMixin):
@@ -38,7 +37,6 @@ class User(Base, TimestampMixin):
         documents (Mapped[list[Document]]): Documents owned by the user.
         document_chunks (Mapped[list[DocumentChunk]]): Document chunks owned by
             the user.
-        rag_queries (Mapped[list[RagQuery]]): RAG queries owned by the user.
     """
 
     __tablename__ = "users"
@@ -94,11 +92,6 @@ class User(Base, TimestampMixin):
     )
 
     document_chunks: Mapped[list["DocumentChunk"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
-
-    rag_queries: Mapped[list["RagQuery"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

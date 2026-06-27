@@ -20,8 +20,6 @@ from ai_notes_api.repositories.filters import (
 from ai_notes_api.repositories.generation_job import GenerationJobRepository
 from ai_notes_api.repositories.message import MessageRepository
 from ai_notes_api.repositories.note import NoteRepository
-from ai_notes_api.repositories.rag_query import RagQueryRepository
-from ai_notes_api.repositories.rag_query_source import RagQuerySourceRepository
 from ai_notes_api.repositories.user import UserRepository
 
 __all__ = [
@@ -38,7 +36,5 @@ __all__ = [
     "ChatMemoryRepository",
     "DocumentRepository",
     "DocumentChunkRepository",
-    "RagQueryRepository",
-    "RagQuerySourceRepository",
     "DocumentProcessingJobRepository",
 ]

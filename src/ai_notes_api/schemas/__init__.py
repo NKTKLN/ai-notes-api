@@ -41,7 +41,6 @@ from ai_notes_api.schemas.note import (
     NoteResponseSchema,
     NoteUpdateSchema,
 )
-from ai_notes_api.schemas.rag import RagQueryRequest, RagQueryResponse, RagSourceRead
 from ai_notes_api.schemas.status import StatusResponseSchema
 from ai_notes_api.schemas.token import TokenResponseSchema
 from ai_notes_api.schemas.user import UserCreateSchema, UserResponseSchema
@@ -79,7 +78,4 @@ __all__ = [
     "DocumentListResponse",
     "DocumentDownloadUrlResponse",
     "DocumentChunkRead",
-    "RagQueryRequest",
-    "RagSourceRead",
-    "RagQueryResponse",
 ]
