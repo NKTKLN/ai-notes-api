@@ -18,6 +18,7 @@ from ai_notes_api.schemas import (
     AssistantMessageCreateSchema,
     UserMessageCreateSchema,
 )
+from ai_notes_api.services.chat_memory import ChatMemoryService
 from ai_notes_api.services.chat_session import ChatSessionService
 from ai_notes_api.services.document_chunk import DocumentChunkService
 from ai_notes_api.services.llm_context import LLMContextBuilder
@@ -244,6 +245,22 @@ class FakeDocumentChunkService:
         return self.chunks
 
 
+class FakeChatMemoryService:
+    """Fake chat memory service returning long-term memory for LLM testing."""
+
+    def __init__(self) -> None:
+        """Initialize the fake chat memory service."""
+        self.memory: Any = SimpleNamespace(facts=[], summary="")
+
+    async def get_by_session_id(
+        self,
+        user_id: UUID,  # noqa: ARG002
+        session_id: UUID,  # noqa: ARG002
+    ) -> Any:
+        """Return the configured chat memory."""
+        return self.memory
+
+
 class FakeNoteService:
     """Fake note service used to build the LLM tool registry."""
 
@@ -289,11 +306,13 @@ def _build_service() -> tuple[FakeLLMClient, FakeMessageService, LLMService]:
     notes = FakeNoteService()
     embeddings = FakeEmbeddingClient()
     chunks = FakeDocumentChunkService()
+    memories = FakeChatMemoryService()
 
     context_builder = LLMContextBuilder(
         embeddings=cast(EmbeddingClient, embeddings),
         message_service=cast(MessageService, messages),
         chunk_service=cast(DocumentChunkService, chunks),
+        memory_service=cast(ChatMemoryService, memories),
     )
 
     service = LLMService(
