@@ -9,9 +9,11 @@
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-FAB040?logo=pre-commit&logoColor=black)](https://pre-commit.com/)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-FE5196?logo=conventionalcommits&logoColor=white)](https://www.conventionalcommits.org/)
 
-**AI Notes API** is a production-oriented FastAPI backend for managing AI-related notes, prompts, conversations, and LLM workflows. The project demonstrates clean architecture, async development, PostgreSQL integration, and practical backend patterns for AI engineering.
+**AI Notes API** is a production-oriented FastAPI backend for managing AI-related notes, prompts, conversations, documents, and LLM workflows. The project demonstrates clean architecture, async development, PostgreSQL + pgvector integration, and practical backend patterns for AI engineering.
 
 The assistant is agentic: during chat completions it can call a built-in note toolkit (search, create, read, update, delete notes), and every chat session keeps a long-term memory built from extracted facts and rolling conversation summaries.
+
+Chat sessions are also document-aware: uploaded documents are stored in S3-compatible storage and processed in the background (text extraction, chunking, and embedding generation), then retrieved as grounding context through pgvector similarity search to power retrieval-augmented generation (RAG).
 
 ## 📦 Dependencies
 
