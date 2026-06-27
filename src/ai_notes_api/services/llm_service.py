@@ -7,13 +7,10 @@ from collections.abc import AsyncGenerator
 from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
-from ai_notes_api.core import settings
-from ai_notes_api.db.models import DocumentChunk, Message
+from ai_notes_api.db.models import Message
 from ai_notes_api.llm import LLMClient
 from ai_notes_api.llm.embeddings import EmbeddingClient
-from ai_notes_api.llm.schemas import LLMMessage, LLMResponse, LLMStreamEvent
-from ai_notes_api.memory import PromptBuilder
-from ai_notes_api.rag.prompt_builder import RAGPromptBuilder
+from ai_notes_api.llm.schemas import LLMResponse, LLMStreamEvent
 from ai_notes_api.schemas import (
     AssistantMessageCreateSchema,
     ChatCompletionResponseSchema,
@@ -21,9 +18,11 @@ from ai_notes_api.schemas import (
 )
 from ai_notes_api.services.chat_session import ChatSessionService
 from ai_notes_api.services.document_chunk import DocumentChunkService
+from ai_notes_api.services.llm_context import LLMContextBuilder
 from ai_notes_api.services.message import MessageService
 from ai_notes_api.services.note import NoteService
 from ai_notes_api.tools import build_registry
+from ai_notes_api.tools.registry import ToolRegistry
 from ai_notes_api.workers.tasks.memory import update_chat_memory_summary
 
 
@@ -73,11 +72,14 @@ class LLMService:
                 used by the service.
         """
         self.client = client
-        self.embeddings = embeddings
         self.notes = note_service
         self.sessions = session_service
         self.messages = message_service
-        self.chunks = document_chunks_service
+        self.context = LLMContextBuilder(
+            embeddings=embeddings,
+            message_service=message_service,
+            chunk_service=document_chunks_service,
+        )
 
     def _get_value(self, source: Any, name: str) -> Any:
         """Return a value from an object or dictionary.
@@ -139,101 +141,41 @@ class LLMService:
 
         return assistant_message
 
-    async def _get_context_messages(
+    async def _collect_tool_outputs(
         self,
-        user_id: UUID,
-        session_id: UUID,
-    ) -> list[LLMMessage]:
-        """Get LLM context messages for a chat session.
+        tools_registry: ToolRegistry,
+        input_data: list[dict[str, Any]],
+        llm_response: LLMResponse,
+    ) -> list[dict[str, Any]]:
+        """Execute requested tool calls and append their outputs to the input.
 
         Args:
-            user_id (UUID): Unique identifier of the user.
-            session_id (UUID): Unique identifier of the chat session.
+            tools_registry (ToolRegistry): Registry used to execute tool calls.
+            input_data (list[dict[str, Any]]): Current LLM input messages.
+            llm_response (LLMResponse): Model response carrying the tool calls
+                and raw output items.
 
         Returns:
-            list[LLMMessage]: Context messages converted to the LLM message format.
+            list[dict[str, Any]]: New input messages extended with the model
+            output items and the corresponding tool call results.
         """
-        raw_messages = await self.messages.get_context_messages(
-            user_id=user_id,
-            session_id=session_id,
-            limit=settings.llm_context_messages_limit,
-        )
+        tool_outputs = [*input_data, *llm_response.output_items]
 
-        context_messages: list[LLMMessage] = []
-
-        for message in raw_messages:
-            context_messages.append(
-                LLMMessage(
-                    role=message.role,
-                    content=message.content,
-                )
+        for tool_call in llm_response.tool_calls:
+            tool_result = await tools_registry.call(
+                name=tool_call.name,
+                arguments=tool_call.arguments,
             )
 
-        return context_messages
+            tool_outputs.append(
+                {
+                    "type": "function_call_output",
+                    "call_id": tool_call.call_id,
+                    "output": tool_result,
+                }
+            )
 
-    async def _retrieve_chunks(
-        self,
-        user_id: UUID,
-        session_id: UUID,
-        query_embedding: list[float],
-        top_k: int = 5,
-    ) -> list[DocumentChunk]:
-        """Retrieve the most similar document chunks for a query embedding.
-
-        Args:
-            user_id (UUID): Unique identifier of the user who owns the chunks.
-            session_id (UUID): Unique chat session identifier.
-            query_embedding (list[float]): Query vector embedding to compare
-                chunk embeddings against.
-            top_k (int): Maximum number of chunks to return. Defaults to 5.
-
-        Returns:
-            list[DocumentChunk]: Matching non-deleted document chunks ordered by
-            cosine distance to the query embedding in ascending order.
-        """
-        return await self.chunks.vector_search(
-            user_id=user_id,
-            session_id=session_id,
-            query_embedding=query_embedding,
-            top_k=top_k,
-        )
-
-    async def _build_prompt(
-        self,
-        user_id: UUID,
-        session_id: UUID,
-        question: str,
-    ) -> list[dict[str, Any]]:
-        """Build LLM input messages with conversation and retrieval context.
-
-        Args:
-            user_id (UUID): Unique identifier of the user requesting the response.
-            session_id (UUID): Unique chat session identifier.
-            question (str): User question used to embed and retrieve relevant
-                document chunks.
-
-        Returns:
-            list[dict[str, Any]]: Serialized LLM input messages combining
-            long-term memory context and retrieved document chunks.
-        """
-        context_messages = await self._get_context_messages(
-            user_id=user_id,
-            session_id=session_id,
-        )
-
-        question_embedding = await self.embeddings.create_embedding([question])
-
-        retrieved_chunks = await self._retrieve_chunks(
-            user_id=user_id,
-            session_id=session_id,
-            query_embedding=question_embedding[0],
-        )
-
-        memory_data = PromptBuilder.build(context_messages[:-1])
-
-        rag_data = RAGPromptBuilder.build(question, retrieved_chunks)
-
-        return [*memory_data, *rag_data]
+        return tool_outputs
 
     async def _generate_response_locked(
         self,
@@ -258,15 +200,15 @@ class LLMService:
         tools_registry = build_registry(notes_service=self.notes, user_id=user_id)
         tools = tools_registry.get_tools()
 
-        await self.messages.create_user_message(
-            user_id=user_id,
-            data=message,
-        )
-
-        input_data = await self._build_prompt(
+        input_data = await self.context.build(
             user_id=user_id,
             session_id=message.session_id,
             question=message.content,
+        )
+
+        await self.messages.create_user_message(
+            user_id=user_id,
+            data=message,
         )
 
         while True:
@@ -276,28 +218,14 @@ class LLMService:
                 tools=tools,
             )
 
-            tool_calls = llm_response.tool_calls
-
-            if not tool_calls:
+            if not llm_response.tool_calls:
                 break
 
-            tool_outputs = [*input_data, *llm_response.output_items]
-
-            for tool_call in tool_calls:
-                tool_result = await tools_registry.call(
-                    name=tool_call.name,
-                    arguments=tool_call.arguments,
-                )
-
-                tool_outputs.append(
-                    {
-                        "type": "function_call_output",
-                        "call_id": tool_call.call_id,
-                        "output": tool_result,
-                    }
-                )
-
-            input_data = tool_outputs
+            input_data = await self._collect_tool_outputs(
+                tools_registry=tools_registry,
+                input_data=input_data,
+                llm_response=llm_response,
+            )
 
         assistant_message = await self._create_assistant_message_from_response(
             user_id=user_id,
@@ -424,15 +352,15 @@ class LLMService:
             tools_registry = build_registry(notes_service=self.notes, user_id=user_id)
             tools = tools_registry.get_tools()
 
-            await self.messages.create_user_message(
-                user_id=user_id,
-                data=message,
-            )
-
-            input_data = await self._build_prompt(
+            input_data = await self.context.build(
                 user_id=user_id,
                 session_id=message.session_id,
                 question=message.content,
+            )
+
+            await self.messages.create_user_message(
+                user_id=user_id,
+                data=message,
             )
 
             llm_response: LLMResponse | None = None
@@ -450,31 +378,14 @@ class LLMService:
 
                     yield event
 
-                if llm_response is None:
+                if llm_response is None or not llm_response.tool_calls:
                     break
 
-                tool_calls = llm_response.tool_calls
-
-                if not tool_calls:
-                    break
-
-                tool_outputs = [*input_data, *llm_response.output_items]
-
-                for tool_call in tool_calls:
-                    tool_result = await tools_registry.call(
-                        name=tool_call.name,
-                        arguments=tool_call.arguments,
-                    )
-
-                    tool_outputs.append(
-                        {
-                            "type": "function_call_output",
-                            "call_id": tool_call.call_id,
-                            "output": tool_result,
-                        }
-                    )
-
-                input_data = tool_outputs
+                input_data = await self._collect_tool_outputs(
+                    tools_registry=tools_registry,
+                    input_data=input_data,
+                    llm_response=llm_response,
+                )
 
             if llm_response is not None:
                 await self._create_assistant_message_from_response(
