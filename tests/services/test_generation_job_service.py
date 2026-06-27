@@ -1,6 +1,5 @@
 """Tests for generation job service."""
 
-from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
 
@@ -16,7 +15,6 @@ from ai_notes_api.repositories import GenerationJobListFilters
 from ai_notes_api.repositories.generation_job import GenerationJobRepository
 from ai_notes_api.schemas import (
     GenerationJobCreateSchema,
-    GenerationJobUpdateSchema,
 )
 from ai_notes_api.services import ChatSessionService
 from ai_notes_api.services.generation_job import GenerationJobService
@@ -43,6 +41,14 @@ class FakeChatSessionService:
         """Ensure a chat session belongs to a user."""
         if self.owners.get(session_id) != user_id:
             raise ChatSessionNotFoundError()
+
+    async def ensure_no_active_job(self, user_id: UUID, session_id: UUID) -> None:
+        """Ensure no active generation job exists for a chat session."""
+        if self.owners.get(session_id) != user_id:
+            raise ChatSessionNotFoundError()
+
+        if session_id in self.locked_sessions:
+            raise GenerationInProgressError()
 
     async def acquire_generation_lock(
         self,
@@ -317,81 +323,6 @@ async def test_get_list_session_not_owned() -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_job_success() -> None:
-    """Test successful generation job update across multiple fields."""
-    repository = FakeGenerationJobRepository()
-    sessions = FakeChatSessionService()
-    store_generation(repository, status=GenerationJobStatus.QUEUED)
-    service = build_service(repository, sessions)
-
-    output_message_id = uuid4()
-    finished_at = datetime.now(UTC)
-
-    data = GenerationJobUpdateSchema(
-        status=GenerationJobStatus.COMPLETED,
-        output_message_id=output_message_id,
-        finished_at=finished_at,
-    )
-
-    generation = await service.update_job(TEST_USER_ID, TEST_JOB_ID, data)
-
-    assert generation.status == GenerationJobStatus.COMPLETED
-    assert generation.output_message_id == output_message_id
-    assert generation.finished_at == finished_at
-    assert repository.updated_generation is generation
-
-
-@pytest.mark.asyncio
-async def test_update_job_only_updates_provided_fields() -> None:
-    """Test that update only mutates fields explicitly provided in the schema."""
-    repository = FakeGenerationJobRepository()
-    sessions = FakeChatSessionService()
-    store_generation(
-        repository, input_message="Original", status=GenerationJobStatus.QUEUED
-    )
-    service = build_service(repository, sessions)
-
-    data = GenerationJobUpdateSchema(status=GenerationJobStatus.RUNNING)
-
-    generation = await service.update_job(TEST_USER_ID, TEST_JOB_ID, data)
-
-    assert generation.status == GenerationJobStatus.RUNNING
-    assert generation.input_message == "Original"
-    assert generation.output_message_id is None
-
-
-@pytest.mark.asyncio
-async def test_update_job_not_found() -> None:
-    """Test that update raises an error when the generation is not found."""
-    repository = FakeGenerationJobRepository()
-    sessions = FakeChatSessionService()
-    service = build_service(repository, sessions)
-
-    data = GenerationJobUpdateSchema(status=GenerationJobStatus.RUNNING)
-
-    with pytest.raises(GenerationNotFoundError):
-        await service.update_job(TEST_USER_ID, uuid4(), data)
-
-    assert repository.updated_generation is None
-
-
-@pytest.mark.asyncio
-async def test_update_job_not_found_for_another_user() -> None:
-    """Test that another user's generation job cannot be updated."""
-    repository = FakeGenerationJobRepository()
-    sessions = FakeChatSessionService()
-    store_generation(repository)
-    service = build_service(repository, sessions)
-
-    data = GenerationJobUpdateSchema(status=GenerationJobStatus.RUNNING)
-
-    with pytest.raises(GenerationNotFoundError):
-        await service.update_job(TEST_USER_ID_2, TEST_JOB_ID, data)
-
-    assert repository.updated_generation is None
-
-
-@pytest.mark.asyncio
 async def test_get_by_id_unscoped_success() -> None:
     """Test successful generation job retrieval without user scoping."""
     repository = FakeGenerationJobRepository()
@@ -516,33 +447,5 @@ async def test_set_job_completed_not_found() -> None:
 
     with pytest.raises(GenerationNotFoundError):
         await service.set_job_completed(uuid4(), uuid4())
-
-    assert repository.updated_generation is None
-
-
-@pytest.mark.asyncio
-async def test_set_job_cancelled_success() -> None:
-    """Test that marking a job cancelled sets the status and finish time."""
-    repository = FakeGenerationJobRepository()
-    sessions = FakeChatSessionService()
-    store_generation(repository, status=GenerationJobStatus.RUNNING)
-    service = build_service(repository, sessions)
-
-    generation = await service.set_job_cancelled(TEST_JOB_ID)
-
-    assert generation.status == GenerationJobStatus.CANCELLED
-    assert generation.finished_at is not None
-    assert repository.updated_generation is generation
-
-
-@pytest.mark.asyncio
-async def test_set_job_cancelled_not_found() -> None:
-    """Test that marking a missing job cancelled raises an error."""
-    repository = FakeGenerationJobRepository()
-    sessions = FakeChatSessionService()
-    service = build_service(repository, sessions)
-
-    with pytest.raises(GenerationNotFoundError):
-        await service.set_job_cancelled(uuid4())
 
     assert repository.updated_generation is None

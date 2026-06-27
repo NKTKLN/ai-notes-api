@@ -11,7 +11,7 @@ from uuid import UUID
 from ai_notes_api.db.models import GenerationJob, GenerationJobStatus
 from ai_notes_api.exceptions import GenerationNotFoundError
 from ai_notes_api.repositories import GenerationJobListFilters, GenerationJobRepository
-from ai_notes_api.schemas import GenerationJobCreateSchema, GenerationJobUpdateSchema
+from ai_notes_api.schemas import GenerationJobCreateSchema
 from ai_notes_api.services.chat_session import ChatSessionService
 
 
@@ -63,6 +63,7 @@ class GenerationJobService:
             GenerationInProgressError: If generation is already in progress.
         """
         await self.sessions.ensure_session_owner(user_id, data.session_id)
+        await self.sessions.ensure_no_active_job(user_id, data.session_id)
 
         generation_data = GenerationJob(
             user_id=user_id,
@@ -147,36 +148,6 @@ class GenerationJobService:
 
         return await self.generations.get_list(user_id, session_id, filters)
 
-    async def update_job(
-        self,
-        user_id: UUID,
-        job_id: UUID,
-        data: GenerationJobUpdateSchema,
-    ) -> GenerationJob:
-        """Update a user's generation job.
-
-        Args:
-            user_id (UUID): Unique identifier of the user who owns the generation job.
-            job_id (UUID): Unique generation job identifier.
-            data (GenerationJobUpdateSchema): Validated data used to update the
-                generation job.
-
-        Returns:
-            GenerationJob: Updated generation job.
-
-        Raises:
-            GenerationNotFoundError: If no accessible generation job exists.
-        """
-        generation_job = await self.get_by_id_for_user(user_id, job_id)
-
-        update_data = data.model_dump(exclude_unset=True)
-
-        for field, value in update_data.items():
-            if value is not None:
-                setattr(generation_job, field, value)
-
-        return await self.generations.update(generation_job)
-
     async def set_job_running(self, generation_id: UUID) -> GenerationJob:
         """Mark a generation job as running and record its start time.
 
@@ -242,25 +213,6 @@ class GenerationJobService:
 
         generation_job.status = GenerationJobStatus.COMPLETED
         generation_job.output_message_id = message_id
-        generation_job.finished_at = datetime.now(UTC)
-
-        return await self.generations.update(generation_job)
-
-    async def set_job_cancelled(self, generation_id: UUID) -> GenerationJob:
-        """Mark a generation job as cancelled and record its finish time.
-
-        Args:
-            generation_id (UUID): Unique generation job identifier.
-
-        Returns:
-            GenerationJob: Updated generation job.
-
-        Raises:
-            GenerationNotFoundError: If no generation job exists.
-        """
-        generation_job = await self.get_by_id(generation_id)
-
-        generation_job.status = GenerationJobStatus.CANCELLED
         generation_job.finished_at = datetime.now(UTC)
 
         return await self.generations.update(generation_job)
